@@ -17,6 +17,10 @@ global pointcolor
 zoom = 1.
 shift_x = 0.
 shift_y = 0.
+
+zoom_step = 1.1
+shift_step = 0.1
+
 g_fViewDistance = 9.
 g_Width  = 300
 g_Height = 300
@@ -33,13 +37,13 @@ def specialkeys(key, x, y):
     global pointcolor, zoom, shift_x, shift_y
     # Обработчики специальных клавиш
     # zoom
-    if key == GLUT_KEY_PAGE_UP:
-        zoom /= 1.1
+    if key == GLUT_KEY_PAGE_UP: # zoom out
+        zoom /= zoom_step
         glUniform1f(PARAM_scale, zoom)
         #glTranslatef(0., 0., 0.02) # может это бы сработало? движение по Z
         # нет, оно ничего не зумит вид из камеры
-    if key == GLUT_KEY_PAGE_DOWN:
-        zoom *= 1.1
+    if key == GLUT_KEY_PAGE_DOWN: # zoom in
+        zoom *= zoom_step
         glUniform1f(PARAM_scale, zoom)
         #glTranslatef(0., 0., -0.02)
 
@@ -47,23 +51,23 @@ def specialkeys(key, x, y):
     if key == GLUT_KEY_UP:          # Клавиша вверх
         #glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
         #glTranslate(0., -0.02, 0.)
-        shift_y -= 0.02
+        shift_y -= shift_step / zoom
         glUniform1f(PARAM_shift_Y, shift_y)
     if key == GLUT_KEY_DOWN:        # Клавиша вниз
         #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
         #glTranslate()
         #glTranslate(0., 0.02, 0.)
-        shift_y += 0.02
+        shift_y += shift_step / zoom
         glUniform1f(PARAM_shift_Y, shift_y)
     if key == GLUT_KEY_LEFT:        # Клавиша влево
         #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
         #glTranslate(0.02, 0., 0.)
-        shift_x += 0.02
+        shift_x += shift_step / zoom
         glUniform1f(PARAM_shift_X, shift_x)
     if key == GLUT_KEY_RIGHT:       # Клавиша вправо
         #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
         #glTranslate(-0.02, 0., 0.)
-        shift_x -= 0.02
+        shift_x -= shift_step / zoom
         glUniform1f(PARAM_shift_X, shift_x)
 
     #if key == GLUT_KEY_END:         # Клавиша END
