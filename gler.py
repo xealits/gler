@@ -107,6 +107,10 @@ class BoolSwitch:
 
 draw_shape = BoolSwitch(states=['lines', 'quads', 'triangles'])
 
+known_elements = {'triangle': (GL_TRIANGLES, 3),
+    'quad': (GL_QUADS, 4),
+    'line': (GL_LINES, 2),
+    'point': (GL_POINTS, 1)}
 
 # Процедура перерисовки
 def draw():
@@ -155,20 +159,8 @@ def draw():
 
     initial_point = 0
     for element, l in pointelements:
-        if element == 'triangle':
-            n_points = 3
-            glDrawArrays(GL_TRIANGLES, initial_point, n_points*l)
-        elif element == 'line':
-            n_points = 2
-            glDrawArrays(GL_LINES, initial_point, n_points*l)
-        elif element == 'quad':
-            n_points = 4
-            glDrawArrays(GL_QUADS, initial_point, n_points*l)
-        elif element == 'point':
-            n_points = 1
-            glDrawArrays(GL_POINTS, initial_point, l)
-        else:
-            pass # raise exception?
+        gl_object, n_points = known_elements[element] # catch keyerror exception?
+        glDrawArrays(gl_object, initial_point, n_points*l)
         initial_point += n_points*l
 
     glDisableClientState(GL_VERTEX_ARRAY)           # Отключаем использование массива вершин
@@ -214,6 +206,7 @@ pointdata = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0.,
 # Определяем массив цветов (по одному цвету для каждой вершины)
 pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0., 0], [1, 1, 0], [0, 1, 1], [1, 0, 1]]
 pointelements = [('line', 3), ('point', 3)]
+#pointelements = {'line': 3, 'point': 3} # need sorted dict, let's stick to just tuples
 
 N_lines = 3
 N_points = 3
