@@ -107,7 +107,12 @@ class BoolSwitch:
 
 draw_shape = BoolSwitch(states=['lines', 'quads', 'triangles'])
 
-known_elements = {'triangle': (GL_TRIANGLES, 3),
+known_elements = {'triangle_fan': (GL_TRIANGLE_FAN,
+    'triangle_strip': (GL_TRIANGLE_STRIP, 1), # actually triangle strip consumes all vertices you give it
+    'quad_strip': (GL_QUAD_STRIP, 1),
+    'line_strip': (GL_LINE_STRIP, 1),
+    # need to figure out how to work with there ones ^
+    'triangle': (GL_TRIANGLES, 3),
     'quad': (GL_QUADS, 4),
     'line': (GL_LINES, 2),
     'point': (GL_POINTS, 1)}
