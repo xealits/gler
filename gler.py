@@ -197,6 +197,11 @@ class GlElement(object):
             ##    3*n_elements*self.n_vertices, GL_UNSIGNED_SHORT, indices)
             #starting_array_index += n_elements*self.n_vertices
 
+            ## with glMultiDrawElements
+            #starting_indices = [i*self.n_vertices for i in range(n_elements)]
+            #counts = [self.n_vertices for _ in range(n_elements)]
+            #glMultiDrawElements(self.element, counts, GL_UNSIGNED_INT, starting_indices, n_elements)
+
         return starting_array_index
 
 #TODO: a class of an inhomogeneous array of elements
@@ -225,7 +230,7 @@ canonical_circle_fan = np.row_stack(([0,0,0],
     np.column_stack((canonical_circle_x, canonical_circle_y, np.zeros(canonical_circle_n))),
     [canonical_circle_x[0], canonical_circle_y[0], 0]))
 
-canonical_circle_n += 2
+canonical_circle_n += 2 # 0 anf last vertices
 
 N_circles = 25
 #circle * 5 + np.array([1,1,0])
@@ -240,6 +245,15 @@ random_circles_drawing_spec = GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_c
         (numpy.random.rand(N_circles) - 0.5)*2,
          numpy.random.rand(N_circles)*0.3) ))])
 '''
+
+def random_circles_fans(N_circles, r_size=0.3):
+    x_y_r = zip((numpy.random.rand(N_circles)-0.5)*2,
+        (numpy.random.rand(N_circles) - 0.5)*2,
+         numpy.random.rand(N_circles)*r_size)
+    circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
+    return GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
+        numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
+
 
 # trianlges-circle
 
@@ -260,7 +274,7 @@ canonical_circle_fan = np.array([pt for i in range(1, canonical_circle_n+1) for 
 
 circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
 
-def random_circles(N_circles, r_size=0.3):
+def random_circles_triangles(N_circles, r_size=0.3):
     x_y_r = zip((numpy.random.rand(N_circles)-0.5)*2,
         (numpy.random.rand(N_circles) - 0.5)*2,
          numpy.random.rand(N_circles)*r_size)
@@ -268,7 +282,9 @@ def random_circles(N_circles, r_size=0.3):
     return GlObjects([(GlElement(GL_TRIANGLES),
         numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
 
-random_circles_drawing_spec, circle_colors = random_circles(20, 0.1)
+
+random_circles_drawing_spec, circle_colors = random_circles_fans(20, 0.1)
+random_circles_drawing_spec, circle_colors = random_circles_triangles(20, 0.1)
 
 
 
