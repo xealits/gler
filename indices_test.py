@@ -14,12 +14,6 @@ import numpy
 np = numpy
 import ctypes
 
-# объявляем массив pointcolor глобальным (будет доступен во всей программе)
-global pointcolor
-# что он содержит?
-
-
-
 zoom = 1.
 shift_x = 0.
 shift_y = 0.
@@ -94,165 +88,6 @@ def create_shader(shader_type, source):
     # Возвращаем созданный шейдер
     return shader
 
-class BoolSwitch:
-    states = []
-    current_state = None
-    def __init__(self, states):
-        self.states = set(states)
-        self.current_state = states[0]
-    def __getattr__(self, test_state):
-        #if test_state in self.states:
-            return test_state == self.current_state
-    def set(self, state):
-        #assert state in self.states
-        self.current_state = state
-    def __str__(self):
-        return '%s/%s' % (self.current_state, self.states)
-    def __repr__(self):
-        return 'BoolSwitch(%s)' % ([self.current_state] + list(self.states - {self.current_state}))
-
-draw_shape = BoolSwitch(states=['lines', 'quads', 'triangles'])
-
-# element = N points/vertices to draw + GL_ELEMENT
-# some GL_ELEMENTs have fixed amount of vertices -- triangle, quad etc -- others don't: triangle_strip, line_strip etc
-# -- drawing either in 1 DrawArrays call
-# or in for loop of DrawArrays
-# pack this functionality in 1 object?
-
-known_elements = {'triangle_fan': (GL_TRIANGLE_FAN, 1),
-    'triangle_strip': (GL_TRIANGLE_STRIP, 1), # actually triangle strip consumes all vertices you give it
-    'quad_strip': (GL_QUAD_STRIP, 1),
-    'line_strip': (GL_LINE_STRIP, 1),
-    # need to figure out how to work with there ones ^
-    'triangle': (GL_TRIANGLES, 3),
-    'quad': (GL_QUADS, 4),
-    'line': (GL_LINES, 2),
-    'point': (GL_POINTS, 1)}
-
-varied_elements = {'triangle_fan': (GL_TRIANGLE_FAN, 1),
-    'triangle_strip': (GL_TRIANGLE_STRIP, 1), # actually triangle strip consumes all vertices you give it
-    'quad_strip': (GL_QUAD_STRIP, 1),
-    'line_strip': (GL_LINE_STRIP, 1),
-    # need to figure out how to work with there ones ^
-    }
-
-const_elements ={
-    'triangle': (GL_TRIANGLES, 3),
-    'quad': (GL_QUADS, 4),
-    'line': (GL_LINES, 2),
-    'point': (GL_POINTS, 1)}
-
-
-gl_elements = {'triangle_fan': GL_TRIANGLE_FAN,
-    'triangle_strip': GL_TRIANGLE_STRIP,
-    'quad_strip': GL_QUAD_STRIP,
-    'line_strip': GL_LINE_STRIP,
-    'triangle': GL_TRIANGLES,
-    'quad': GL_QUADS,
-    'line': GL_LINES,
-    'point': GL_POINTS}
-
-class GlElement(object):
-    _const_elements = {
-        GL_TRIANGLES: 3,
-        GL_QUADS: 4,
-        GL_LINES: 2,
-        GL_POINTS: 1}
-
-    def __init__(self, gl_element, n_vertices=None):
-        if gl_element in self._const_elements:
-            if n_vertices:
-                assert n_vertices == self._const_elements[gl_element]
-            else:
-                n_vertices = self._const_elements[gl_element]
-        self.element = gl_element
-        self.n_vertices = n_vertices # per 1 element
-
-    def __repr__(self):
-        return 'GlElements(%s, %d)' % (repr(self.element), self.n_vertices)
-
-    def glDraw(self, starting_array_index, n_elements):
-        if self.element in self._const_elements:
-            # GL_TYPE, index in the common vertices array, N vertices to draw in this command
-            n_vertices_to_draw = n_elements * self.n_vertices
-            glDrawArrays(self.element, starting_array_index, n_vertices_to_draw)
-            starting_array_index += n_vertices_to_draw
-        else:
-            # if it's element of varied amount of vertices
-            # draw in loop
-            for _ in range(n_elements):
-                n_vertices_to_draw = self.n_vertices
-                glDrawArrays(self.element, starting_array_index, n_vertices_to_draw)
-                starting_array_index += n_vertices_to_draw
-
-            # with glDrawRangeElements
-            #  glDrawRangeElements( GLenum ( mode ) , GLuint ( start ) , GLuint ( end ) , GLsizei ( count ) , GLenum ( type ) , const GLvoid * ( indices ) )-> void 
-            #  type Specifies the type of the values in indices . Must be one of GL_UNSIGNED_BYTE , GL_UNSIGNED_SHORT , or GL_UNSIGNED_INT . 
-            # from https://stackoverflow.com/questions/36508068/using-pythons-opengl-api-how-do-i-perform-gldrawelements-on-a-subset-of-the-el
-            # do this:
-            #print(n_elements, self.n_vertices)
-            #glDrawRangeElements(self.element, starting_array_index, starting_array_index + n_elements*self.n_vertices,
-            #    3*n_elements*self.n_vertices, GL_UNSIGNED_SHORT, ctypes.c_void_p(starting_array_index*2))
-            ##glDrawRangeElements(self.element, starting_array_index, starting_array_index + n_elements*self.n_vertices,
-            ##    3*n_elements*self.n_vertices, GL_UNSIGNED_SHORT, indices)
-            #starting_array_index += n_elements*self.n_vertices
-
-        return starting_array_index
-
-#TODO: a class of an inhomogeneous array of elements
-# т.е. нужен список элементов, который трансформируется в 1 вектор вершин и список элементов для рисовательной команды
-class GlObjects(object):
-    def __init__(self, elements_list):
-        # elements_descr = [(GlElement, vertices), ...]
-        # -- list of homogeneous elements with their vertices
-        # elements_spec is [(el, n_elements), ...]
-        elements_vtx  = [(el, numpy.array(vtx).reshape(-1, 3)) for el, vtx in elements_list]
-        assert all(len(vtx) % el.n_vertices == 0 for el, vtx in elements_vtx) # integer number of elements
-        self.elements_spec = [(el, len(vtx) // el.n_vertices) for el, vtx in elements_vtx]
-        self.elements_vtx  = numpy.row_stack(vtx for _, vtx in elements_vtx)
-        print(len(self.elements_vtx), sum(el.n_vertices * n_el for el, n_el in self.elements_spec))
-
-    def flatten_gl(self):
-        #return array of vertices and list of element descriptions
-        # plus color
-        return self.elements_vtx, self.elements_spec
-
-
-canonical_circle_n = 50
-canonical_circle_x = np.cos([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n)])
-canonical_circle_y = np.sin([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n)])
-canonical_circle_fan = np.row_stack(([0,0,0],
-    np.column_stack((canonical_circle_x, canonical_circle_y, np.zeros(canonical_circle_n))),
-    [canonical_circle_x[0], canonical_circle_y[0], 0]))
-
-canonical_circle_n += 2
-
-N_circles = 25
-#circle * 5 + np.array([1,1,0])
-ones_circles_drawing_spec = GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
-    numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in zip(numpy.zeros(N_circles),
-         numpy.zeros(N_circles),
-         numpy.ones(N_circles)) ))])
-
-'''
-random_circles_drawing_spec = GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
-    numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in zip((numpy.random.rand(N_circles)-0.5)*2,
-        (numpy.random.rand(N_circles) - 0.5)*2,
-         numpy.random.rand(N_circles)*0.3) ))])
-'''
-
-circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
-
-def random_circles(N_circles, r_size=0.3):
-    x_y_r = zip((numpy.random.rand(N_circles)-0.5)*2,
-        (numpy.random.rand(N_circles) - 0.5)*2,
-         numpy.random.rand(N_circles)*r_size)
-    circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
-    return GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
-        numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
-
-random_circles_drawing_spec, circle_colors = random_circles(25, 0.1)
-
 
 
 
@@ -313,8 +148,13 @@ def draw():
         glDrawArrays(gl_object, initial_point, n_vertices_to_draw)
         initial_point += n_vertices_to_draw
         '''
-    for element, n_elements in pointelements:
-        initial_point += element.glDraw(initial_point, n_elements)
+
+    start = 0
+    #glDrawArrays(GL_LINES, start, 8)
+    glDrawElements(GL_TRIANGLE_STRIP, 3,
+                   GL_UNSIGNED_SHORT, ctypes.c_void_p(start*2))
+    #glDrawRangeElements(self.element, starting_array_index, starting_array_index + n_elements*self.n_vertices,
+    #    3*n_elements*self.n_vertices, GL_UNSIGNED_SHORT, ctypes.c_void_p(starting_array_index*2))
 
     glDisableClientState(GL_VERTEX_ARRAY)           # Отключаем использование массива вершин
     glDisableClientState(GL_COLOR_ARRAY)            # Отключаем использование массива цветов
@@ -332,20 +172,6 @@ def reshape(width, height):
     glViewport(0, 0, g_Width, g_Height)
 
 
-timer_tick = 50 # ms
-
-def glutTimer(value):
-    ''' the 2 second timer will update the window as in the example:
-    glutTimerFunc(1, glutTimer, 1);
-    void glutTimer(int value)
-    {
-    glutPostRedisplay();
-    glutTimerFunc(1, glutTimer, 1);
-    }
-    '''
-    glutPostRedisplay();
-    glutTimerFunc(timer_tick, glutTimer, 1);
-
 from threading import Thread
 # ok, maybe use
 #glThread = threading.Thread(target=runGl)
@@ -360,27 +186,11 @@ from threading import Thread
 pointdata = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0., 0.7, 0], [-0.2, 0.5, 0], [0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
 # Определяем массив цветов (по одному цвету для каждой вершины)
 pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0., 0], [1, 1, 0], [0, 1, 1], [1, 0, 1]]
-pointelements = [('line', 3), ('point', 3)]
-#pointelements = {'line': 3, 'point': 3} # need sorted dict, let's stick to just tuples
-
-lines_vtx = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0., 0.7, 0], [-0.2, 0.5, 0]]
-#lines  = GlElements(GL_LINES, lines_vtx)
-points_vtx = [[0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
-#points = GlElements(GL_POINTS, points_vtx)
-
-drawing_spec = GlObjects([(GlElement(GL_LINES), lines_vtx), (GlElement(GL_POINTS), points_vtx)])
-
-drawing_spec = ones_circles_drawing_spec # random_circles_drawing_spec
-drawing_spec = random_circles_drawing_spec
-pointcolor = circle_colors
-
-#print(repr(drawing_spec.elements_vtx))
-print(drawing_spec.elements_vtx.shape)
-print(drawing_spec.elements_spec)
-pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
-
-N_lines = 3
-N_points = 3
+indices = [0,1,2,3,
+           4,5,6,7 ]
+#vert_buffer = vbo.VBO(numpy.array(vertices, dtype=numpy.float32))
+#uv_buffer = vbo.VBO(numpy.array(uvs, dtype=numpy.float32))
+#index_buffer = vbo.VBO(numpy.array(indices, dtype=numpy.uint16), target=GL_ELEMENT_ARRAY_BUFFER)
 
 # Здесь начинется выполнение программы
 def gl_window_program():
