@@ -9,6 +9,7 @@ from OpenGL.GLUT import *
 from random import random
 import logging
 import numpy
+np = numpy
 
 # объявляем массив pointcolor глобальным (будет доступен во всей программе)
 global pointcolor
@@ -189,7 +190,7 @@ class GlObjects(object):
     def __init__(self, elements_list):
         # elements_descr = [(GlElement, vertices), ...]
         # -- list of homogeneous elements with their vertices
-	# elements_spec is [(el, n_elements), ...]
+        # elements_spec is [(el, n_elements), ...]
         elements_vtx  = [(el, numpy.array(vtx).reshape(-1, 3)) for el, vtx in elements_list]
         assert all(len(vtx) % el.n_vertices == 0 for el, vtx in elements_vtx) # integer number of elements
         self.elements_spec = [(el, len(vtx) // el.n_vertices) for el, vtx in elements_vtx]
@@ -200,6 +201,44 @@ class GlObjects(object):
         #return array of vertices and list of element descriptions
         # plus color
         return self.elements_vtx, self.elements_spec
+
+
+canonical_circle_n = 50
+canonical_circle_x = np.cos([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n)])
+canonical_circle_y = np.sin([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n)])
+canonical_circle_fan = np.row_stack(([0,0,0],
+    np.column_stack((canonical_circle_x, canonical_circle_y, np.zeros(canonical_circle_n))),
+    [canonical_circle_x[0], canonical_circle_y[0], 0]))
+
+canonical_circle_n += 2
+
+N_circles = 25
+#circle * 5 + np.array([1,1,0])
+ones_circles_drawing_spec = GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
+    numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in zip(numpy.zeros(N_circles),
+         numpy.zeros(N_circles),
+         numpy.ones(N_circles)) ))])
+
+'''
+random_circles_drawing_spec = GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
+    numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in zip((numpy.random.rand(N_circles)-0.5)*2,
+        (numpy.random.rand(N_circles) - 0.5)*2,
+         numpy.random.rand(N_circles)*0.3) ))])
+'''
+
+circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
+
+def random_circles(N_circles, r_size=0.3):
+    x_y_r = zip((numpy.random.rand(N_circles)-0.5)*2,
+        (numpy.random.rand(N_circles) - 0.5)*2,
+         numpy.random.rand(N_circles)*r_size)
+    circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
+    return GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
+        numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
+
+random_circles_drawing_spec, circle_colors = random_circles(25, 0.1)
+
+
 
 
 # Процедура перерисовки
@@ -310,7 +349,11 @@ points_vtx = [[0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
 
 drawing_spec = GlObjects([(GlElement(GL_LINES), lines_vtx), (GlElement(GL_POINTS), points_vtx)])
 
-print(repr(drawing_spec.elements_vtx))
+drawing_spec = ones_circles_drawing_spec # random_circles_drawing_spec
+drawing_spec = random_circles_drawing_spec
+pointcolor = circle_colors
+
+#print(repr(drawing_spec.elements_vtx))
 print(drawing_spec.elements_vtx.shape)
 print(drawing_spec.elements_spec)
 pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
