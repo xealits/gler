@@ -241,17 +241,34 @@ random_circles_drawing_spec = GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_c
          numpy.random.rand(N_circles)*0.3) ))])
 '''
 
+# trianlges-circle
+
+canonical_circle_n = 50
+canonical_circle_x = np.cos([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n+1)])
+canonical_circle_y = np.sin([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n+1)])
+canonical_circle_fan = np.array([pt for i in range(1, canonical_circle_n+1) for pt in
+   ([0,0,0],
+    [canonical_circle_x[i],   canonical_circle_y[i],   0],
+    [canonical_circle_x[i-1], canonical_circle_y[i-1], 0])])
+
+
+#print(canonical_circle_fan)
+
+#np.row_stack(([0,0,0],
+#    np.column_stack((canonical_circle_x, canonical_circle_y, np.zeros(canonical_circle_n))),
+#    [canonical_circle_x[0], canonical_circle_y[0], 0]))
+
 circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
 
 def random_circles(N_circles, r_size=0.3):
     x_y_r = zip((numpy.random.rand(N_circles)-0.5)*2,
         (numpy.random.rand(N_circles) - 0.5)*2,
          numpy.random.rand(N_circles)*r_size)
-    circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n)]
-    return GlObjects([(GlElement(GL_TRIANGLE_FAN, canonical_circle_n),
+    circle_colors = [[r,g,b] for r,g,b in numpy.random.rand(N_circles, 3) for _ in range(canonical_circle_n*3)]
+    return GlObjects([(GlElement(GL_TRIANGLES),
         numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
 
-random_circles_drawing_spec, circle_colors = random_circles(25, 0.1)
+random_circles_drawing_spec, circle_colors = random_circles(20, 0.1)
 
 
 
@@ -304,6 +321,8 @@ def draw():
     #    glDrawArrays(GL_QUADS, 0, 4*(len(pointdata) // 4))
     #else:
     #    glDrawArrays(GL_POINTS, 0, len(pointdata))
+
+    #glPointSize(5)
 
     initial_point = 0
     '''
@@ -370,6 +389,7 @@ points_vtx = [[0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
 
 drawing_spec = GlObjects([(GlElement(GL_LINES), lines_vtx), (GlElement(GL_POINTS), points_vtx)])
 
+# circles
 drawing_spec = ones_circles_drawing_spec # random_circles_drawing_spec
 drawing_spec = random_circles_drawing_spec
 pointcolor = circle_colors
