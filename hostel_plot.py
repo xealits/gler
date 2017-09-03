@@ -89,19 +89,26 @@ def main():
                                       point_x2, point_y2, numpy.zeros_like(point_x1),
                                       point_x1, point_y2, numpy.zeros_like(point_x1)))
 
-    mrks = Markers(flat_quad_points, [('quad', 1)])
+    #mrks = Markers(flat_quad_points, [('quad', 1)])
+    logging.info('reshape: %s' % repr(flat_quad_points.reshape(-1,3)))
+    #flat_points = flat_quad_points.reshape(-1,3)
+    #elements = [GlElements(gl_elements['quad'], flat_points)]
+    #drawing_spec = GlObjects([(GlElement(GL_LINES), lines_vtx), (GlElement(GL_POINTS), points_vtx)])
+    drawing_spec = GlObjects([(GlElement(gl_elements['quad']), flat_quad_points)])
 
     flat_quad_point_colors = numpy.column_stack((point_color, point_color, point_color, point_color))
 
     #elements = [('quad', len(point_x1))] # old
     #elements = {'quad': len(point_x1)} # need SortedDict, let's stick to tuples
-    flat_points, elements = mrks.flatten_for_gl() #flat_quad_points.reshape(-1, 3)
-    logging.info((flat_points == flat_quad_points.reshape(-1,3)).all())
+    #flat_points, elements = mrks.flatten_for_gl() #flat_quad_points.reshape(-1, 3)
+
+    #logging.info((flat_points == flat_quad_points.reshape(-1,3)).all())
     flat_colors = flat_quad_point_colors.reshape(-1, 3)
 
-    logging.info(flat_points.shape)
+    #logging.info(flat_points.shape)
     logging.info(flat_colors.shape)
-    logging.info(elements)
+    logging.info(drawing_spec)
+    logging.info(drawing_spec.elements_spec)
 
     # select the points into quads with colors for all 4 points
     # p[:,0] -- x
@@ -109,7 +116,8 @@ def main():
     # z, color
     import gler
     gler.glThread.start()
-    gler.pointdata, gler.pointcolor, gler.pointelements = flat_points, flat_colors, elements
+    #gler.pointdata, gler.pointcolor, gler.pointelements = flat_points, flat_colors, elements
+    gler.pointdata, gler.pointcolor, gler.pointelements = drawing_spec.elements_vtx, flat_colors, drawing_spec.elements_spec
 
 
 if __name__ == '__main__':

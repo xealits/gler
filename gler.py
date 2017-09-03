@@ -7,6 +7,8 @@ from OpenGL.GLUT import *
 #import sys
 # Из модуля random импортируем одноименную функцию random
 from random import random
+import logging
+import numpy
 
 # объявляем массив pointcolor глобальным (будет доступен во всей программе)
 global pointcolor
@@ -107,7 +109,13 @@ class BoolSwitch:
 
 draw_shape = BoolSwitch(states=['lines', 'quads', 'triangles'])
 
-known_elements = {'triangle_fan': (GL_TRIANGLE_FAN,
+# element = N points/vertices to draw + GL_ELEMENT
+# some GL_ELEMENTs have fixed amount of vertices -- triangle, quad etc -- others don't: triangle_strip, line_strip etc
+# -- drawing either in 1 DrawArrays call
+# or in for loop of DrawArrays
+# pack this functionality in 1 object?
+
+known_elements = {'triangle_fan': (GL_TRIANGLE_FAN, 1),
     'triangle_strip': (GL_TRIANGLE_STRIP, 1), # actually triangle strip consumes all vertices you give it
     'quad_strip': (GL_QUAD_STRIP, 1),
     'line_strip': (GL_LINE_STRIP, 1),
@@ -116,6 +124,83 @@ known_elements = {'triangle_fan': (GL_TRIANGLE_FAN,
     'quad': (GL_QUADS, 4),
     'line': (GL_LINES, 2),
     'point': (GL_POINTS, 1)}
+
+varied_elements = {'triangle_fan': (GL_TRIANGLE_FAN, 1),
+    'triangle_strip': (GL_TRIANGLE_STRIP, 1), # actually triangle strip consumes all vertices you give it
+    'quad_strip': (GL_QUAD_STRIP, 1),
+    'line_strip': (GL_LINE_STRIP, 1),
+    # need to figure out how to work with there ones ^
+    }
+
+const_elements ={
+    'triangle': (GL_TRIANGLES, 3),
+    'quad': (GL_QUADS, 4),
+    'line': (GL_LINES, 2),
+    'point': (GL_POINTS, 1)}
+
+
+gl_elements = {'triangle_fan': GL_TRIANGLE_FAN,
+    'triangle_strip': GL_TRIANGLE_STRIP,
+    'quad_strip': GL_QUAD_STRIP,
+    'line_strip': GL_LINE_STRIP,
+    'triangle': GL_TRIANGLES,
+    'quad': GL_QUADS,
+    'line': GL_LINES,
+    'point': GL_POINTS}
+
+class GlElement(object):
+    _const_elements = {
+        GL_TRIANGLES: 3,
+        GL_QUADS: 4,
+        GL_LINES: 2,
+        GL_POINTS: 1}
+
+    def __init__(self, gl_element, n_vertices=None):
+        if gl_element in self._const_elements:
+            if n_vertices:
+                assert n_vertices == self._const_elements[gl_element]
+            else:
+                n_vertices = self._const_elements[gl_element]
+        self.element = gl_element
+        self.n_vertices = n_vertices # per 1 element
+
+    def __repr__(self):
+        return 'GlElements(%s, %d)' % (repr(self.element), self.n_vertices)
+
+    def glDraw(self, starting_array_index, n_elements):
+        if self.element in self._const_elements:
+            # GL_TYPE, index in the common vertices array, N vertices to draw in this command
+            n_vertices_to_draw = n_elements * self.n_vertices
+            glDrawArrays(self.element, starting_array_index, n_vertices_to_draw)
+            starting_array_index += n_vertices_to_draw
+        else:
+            # if it's element of varied amount of vertices
+            # draw in loop
+            for _ in range(n_elements):
+                n_vertices_to_draw = self.n_vertices
+                glDrawArrays(self.element, starting_array_index, n_vertices_to_draw)
+                starting_array_index += n_vertices_to_draw
+
+        return starting_array_index
+
+#TODO: a class of an inhomogeneous array of elements
+# т.е. нужен список элементов, который трансформируется в 1 вектор вершин и список элементов для рисовательной команды
+class GlObjects(object):
+    def __init__(self, elements_list):
+        # elements_descr = [(GlElement, vertices), ...]
+        # -- list of homogeneous elements with their vertices
+	# elements_spec is [(el, n_elements), ...]
+        elements_vtx  = [(el, numpy.array(vtx).reshape(-1, 3)) for el, vtx in elements_list]
+        assert all(len(vtx) % el.n_vertices == 0 for el, vtx in elements_vtx) # integer number of elements
+        self.elements_spec = [(el, len(vtx) // el.n_vertices) for el, vtx in elements_vtx]
+        self.elements_vtx  = numpy.row_stack(vtx for _, vtx in elements_vtx)
+        print(len(self.elements_vtx), sum(el.n_vertices * n_el for el, n_el in self.elements_spec))
+
+    def flatten_gl(self):
+        #return array of vertices and list of element descriptions
+        # plus color
+        return self.elements_vtx, self.elements_spec
+
 
 # Процедура перерисовки
 def draw():
@@ -163,10 +248,15 @@ def draw():
     #    glDrawArrays(GL_POINTS, 0, len(pointdata))
 
     initial_point = 0
+    '''
     for element, l in pointelements:
         gl_object, n_points = known_elements[element] # catch keyerror exception?
-        glDrawArrays(gl_object, initial_point, n_points*l)
-        initial_point += n_points*l
+        n_vertices_to_draw = n_points*l
+        glDrawArrays(gl_object, initial_point, n_vertices_to_draw)
+        initial_point += n_vertices_to_draw
+        '''
+    for element, n_elements in pointelements:
+        initial_point += element.glDraw(initial_point, n_elements)
 
     glDisableClientState(GL_VERTEX_ARRAY)           # Отключаем использование массива вершин
     glDisableClientState(GL_COLOR_ARRAY)            # Отключаем использование массива цветов
@@ -212,6 +302,18 @@ pointdata = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0.,
 pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0., 0], [1, 1, 0], [0, 1, 1], [1, 0, 1]]
 pointelements = [('line', 3), ('point', 3)]
 #pointelements = {'line': 3, 'point': 3} # need sorted dict, let's stick to just tuples
+
+lines_vtx = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0., 0.7, 0], [-0.2, 0.5, 0]]
+#lines  = GlElements(GL_LINES, lines_vtx)
+points_vtx = [[0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
+#points = GlElements(GL_POINTS, points_vtx)
+
+drawing_spec = GlObjects([(GlElement(GL_LINES), lines_vtx), (GlElement(GL_POINTS), points_vtx)])
+
+print(repr(drawing_spec.elements_vtx))
+print(drawing_spec.elements_vtx.shape)
+print(drawing_spec.elements_spec)
+pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
 
 N_lines = 3
 N_points = 3
@@ -330,8 +432,9 @@ def f(name):
 
 if __name__ == '__main__':
     info('main line')
-    p = Process(target=f, args=('bob',))
-    p.start()
-    p.join()
+    #p = Process(target=f, args=('bob',))
+    #p.start()
+    #p.join()
+    glThread.start()
 
 

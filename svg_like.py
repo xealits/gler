@@ -1,7 +1,7 @@
 import pickle
 import logging
 import numpy
-from gler import known_elements
+from gler import known_elements, gl_elements, GlElement, GlObjects
 
 
 logging.basicConfig(level=logging.INFO)
@@ -141,5 +141,6 @@ def test_triangle_strip(N_points):
     if not gler.glThread.isAlive():
         gler.glThread.start()
     gler.pointdata, gler.pointcolor, gler.pointelements = flat_points, colours, flat_elements
+    gler.glutPostRedisplay()
 
 
