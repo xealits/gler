@@ -283,8 +283,9 @@ def random_circles_triangles(N_circles, r_size=0.3):
         numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
 
 
-random_circles_drawing_spec, circle_colors = random_circles_fans(20, 0.1)
-random_circles_drawing_spec, circle_colors = random_circles_triangles(20, 0.005)
+N_circles = 20000
+#random_circles_drawing_spec, circle_colors = random_circles_fans     (N_circles, 0.005)
+random_circles_drawing_spec, circle_colors = random_circles_triangles(N_circles, 0.005)
 
 
 

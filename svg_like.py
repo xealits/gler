@@ -137,10 +137,19 @@ def test_triangle_strip(N_points):
 
     flat_points, flat_elements = mrks.flatten_for_gl()
 
+    #print(repr(flat_points))
+    #print(repr(colours))
+    #print(repr(flat_elements))
+
     import gler
+    gler.pointdata, gler.pointcolor, gler.pointelements = flat_points, colours, flat_elements
+    #gler.glutPostRedisplay()
     if not gler.glThread.isAlive():
         gler.glThread.start()
-    gler.pointdata, gler.pointcolor, gler.pointelements = flat_points, colours, flat_elements
-    gler.glutPostRedisplay()
 
+
+if __name__ == '__main__':
+    N_points = 2
+    print("testing the %d circles" % N_points)
+    test_triangle_strip(N_points)
 
