@@ -115,10 +115,12 @@ def main():
     # p[:,1] -- y
     # z, color
     import gler
-    gler.glThread.start()
     #gler.pointdata, gler.pointcolor, gler.pointelements = flat_points, flat_colors, elements
+    logging.info('vtx shape %s' % repr(drawing_spec.elements_vtx.shape))
+    logging.info('elements  %s' % repr(drawing_spec.elements_spec))
     gler.pointdata, gler.pointcolor, gler.pointelements = drawing_spec.elements_vtx, flat_colors, drawing_spec.elements_spec
 
+    gler.glThread.start()
 
 if __name__ == '__main__':
     main()

@@ -284,7 +284,7 @@ def random_circles_triangles(N_circles, r_size=0.3):
 
 
 random_circles_drawing_spec, circle_colors = random_circles_fans(20, 0.1)
-random_circles_drawing_spec, circle_colors = random_circles_triangles(20, 0.1)
+random_circles_drawing_spec, circle_colors = random_circles_triangles(20, 0.005)
 
 
 
@@ -292,11 +292,46 @@ random_circles_drawing_spec, circle_colors = random_circles_triangles(20, 0.1)
 # Процедура перерисовки
 def draw():
     '''
+    это вызывается Н раз в секунду на ЦПУ
+    тут должны быть только команды для рендеринга
+    типа "рисуй то-то и то-то"
+    не должно быть перезагрузки самих данных
+
+    по идее именно это происходит с в старом draw_old из хабравского туториала
+    "Указываем, где взять массив верши:"
+
+    сейчас массив вершин и цвет будут изначально
+    '''
+    glClear(GL_COLOR_BUFFER_BIT)                    # Очищаем экран и заливаем серым цветом
+
+    initial_point = 0
+    '''
+    for element, l in pointelements:
+        gl_object, n_points = known_elements[element] # catch keyerror exception?
+        n_vertices_to_draw = n_points*l
+        glDrawArrays(gl_object, initial_point, n_vertices_to_draw)
+        initial_point += n_vertices_to_draw
+        '''
+
+    for element, n_elements in pointelements:
+        initial_point += element.glDraw(initial_point, n_elements)
+        # glDraw должен иметь только команды типа
+        #gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
+        # -- нарисуй 4 вершины
+        # теперь сами вершины должны содержать цвет
+	# но что делать с рисованием кучи отдельных прямоугольников?
+        # -- ага, там есть GL_QUADS -- им и рисуем сейчас
+
+    glutSwapBuffers()                               # Выводим все нарисованное в памяти на экран
+
+def draw_old():
+    '''
     т.е. это вызывается Н раз в секунду?
     не ясно как здесь с производительностью? про переинициализируется? какие стркутуры данных?
     например "включаем использование массива вершин" -- исполняется Н раз в секунду?
     можно ли и стоит ли исполнять его 1 раз перед началом программы?
     '''
+
     glClear(GL_COLOR_BUFFER_BIT)                    # Очищаем экран и заливаем серым цветом
     #gluPerspective(zoom, float(g_Width)/float(g_Height), g_nearPlane, g_farPlane)
     # when to run it?
@@ -411,7 +446,7 @@ drawing_spec = random_circles_drawing_spec
 pointcolor = circle_colors
 
 #print(repr(drawing_spec.elements_vtx))
-print(drawing_spec.elements_vtx.shape)
+print('shape %s' % repr(drawing_spec.elements_vtx.shape))
 print(drawing_spec.elements_spec)
 pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
 
@@ -420,6 +455,23 @@ N_points = 3
 
 # Здесь начинется выполнение программы
 def gl_window_program():
+    '''
+    сюда глобально передаются данные с вершинами и цветом:
+
+    gler.pointdata, gler.pointcolor, gler.pointelements = drawing_spec.elements_vtx, flat_colors, drawing_spec.elements_spec
+
+    которые равны:
+    flat_colors = flat_quad_point_colors.reshape(-1, 3)  = numpy array RGB 
+    drawing_spec = GlObjects([(GlElement(gl_elements['quad']), flat_quad_points)])
+    всё это определено выше
+    gl_elements 'quad' это те что надо GL_QUADS
+    а данные решейпнуты ин-лайн здесь:
+    logging.info('reshape: %s' % repr(flat_quad_points.reshape(-1,3)))
+    -- по 3 координаты на вершину, как и цвет
+
+    теперь нужно точно тип указать везде и ок
+    '''
+
     global PARAM_scale, PARAM_shift_Y, PARAM_shift_X
 
     # Использовать двойную буферезацию и цвета в формате RGB (Красный Синий Зеленый)
@@ -436,7 +488,9 @@ def gl_window_program():
     # reshape function -- reacts to window reshape
     glutReshapeFunc(reshape)
     # Определяем процедуру, отвечающую за перерисовку
-    glutDisplayFunc(draw)
+    glutDisplayFunc(draw) # когда она запускается?
+    # мне нужно 1 раз загрузить буферы с вершинами и всё, дальше только перерисовывать зум и движение по графику
+
     # Определяем процедуру, выполняющуюся при "простое" программы
     #glutIdleFunc(draw)
     # the timer redraws the window every timer_tick ms
@@ -455,16 +509,16 @@ def gl_window_program():
     vertex_vanila = create_shader(GL_VERTEX_SHADER, """
     uniform float scale;
     varying vec4 vertex_color;
-                void main(){
+    void main(){
                     gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
                     gl_PointSize = 5.0;
                     vertex_color = gl_Color;
                 }""")
 
-    vertex = create_shader(GL_VERTEX_SHADER, """
+    vertex_used1 = create_shader(GL_VERTEX_SHADER, """
     uniform float scale, shift_x, shift_y;
     varying vec4 vertex_color;
-                void main(){
+    void main(){
                     vec4 Vertex = gl_Vertex;
                         Vertex.x += shift_x;
                         Vertex.y += shift_y;
@@ -476,12 +530,36 @@ def gl_window_program():
                     vertex_color = gl_Color;
                 }""")
 
+    # новый шейдер
+    # с атрибутами вершин
+    # не знаю как оно отличается от предыдущего -- там не явно както всё передаётся
+    # тут в атрибуты явно загонится буфер с вершинами для отрисовки
+    #
+    # только для зума нужно таки использовать ту проджекшн матрикс
+    vertex = create_shader(GL_VERTEX_SHADER,"""
+      uniform float scale;
+      uniform float shift_x, shift_y;
+      attribute vec3 position;
+      attribute vec3 color;
+      varying vec3 vertex_color;
+      void main()
+      {
+        vec4 Vertex = vec4(position, 1.0);
+            Vertex.x += shift_x;
+            Vertex.y += shift_y;
+            Vertex.x *= scale;
+            Vertex.y *= scale;
+            Vertex.z *= scale;
+        gl_Position = gl_ModelViewProjectionMatrix * Vertex;
+        vertex_color = color;
+      } """)
+
     # Создаем фрагментный шейдер:
     # Определяет цвет каждого фрагмента как "смешанный" цвет его вершин
     fragment = create_shader(GL_FRAGMENT_SHADER, """
-    varying vec4 vertex_color;
-                void main() {
-                    gl_FragColor = vertex_color;
+    varying vec3 vertex_color;
+    void main() {
+                   gl_FragColor = vec4(vertex_color, 1.0);
     }""")
 
     # Создаем пустой объект шейдерной программы
@@ -492,8 +570,67 @@ def gl_window_program():
     glAttachShader(program, fragment)
     # "Собираем" шейдерную программу
     glLinkProgram(program)
+
+    # are these required?
+    glDetachShader(program, vertex)
+    glDetachShader(program, fragment)
+
     # Сообщаем OpenGL о необходимости использовать данную шейдерну программу при отрисовке объектов
     glUseProgram(program)
+
+    # загрузим буфер с точками
+    # Request a buffer slot from GPU
+    buffer = glGenBuffers(1)
+
+    # Make this buffer the default one
+    glBindBuffer(GL_ARRAY_BUFFER, buffer)
+
+    assert len(pointdata) == len(pointcolor)
+
+    data = numpy.zeros(len(pointdata), dtype = [ ("position", np.float32, 3),
+                                                 ("color",    np.float32, 3)] )
+
+    data['color']    = pointcolor
+    data['position'] = pointdata
+    # each is numpy array of 3-coordinate vectors
+
+    # Upload data
+    glBufferData(GL_ARRAY_BUFFER, data.nbytes, data, GL_DYNAMIC_DRAW)
+
+    # and we need to _bind_ it
+    # stride -- между вешинами, офсет -- внутри вершины
+
+    stride = data.strides[0]
+
+    offset = ctypes.c_void_p(0)
+    loc = glGetAttribLocation(program, "position") # новый шейдер имеет этот атрибут position
+    glEnableVertexAttribArray(loc)
+    glBindBuffer(GL_ARRAY_BUFFER, buffer)
+    glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
+
+    offset = ctypes.c_void_p(data.dtype["position"].itemsize)
+    loc = glGetAttribLocation(program, "color")
+    glEnableVertexAttribArray(loc)
+    glBindBuffer(GL_ARRAY_BUFFER, buffer)
+    glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
+
+    # что это за 3 и 4? размеры векторов в вершине? почему не 2, 4?
+
+    """
+    khronos doc:
+
+    void glVertexAttribPointer( 	GLuint index,
+      	GLint size,
+      	GLenum type,
+      	GLboolean normalized,
+      	GLsizei stride,
+      	const GLvoid * pointer);
+
+     size
+        Specifies the number of components per generic vertex attribute.
+        Must be 1, 2, 3, 4. Additionally, the symbolic constant GL_BGRA is accepted by glVertexAttribPointer.
+        The initial value is 4.
+    """
 
 
     # magic
