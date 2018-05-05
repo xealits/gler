@@ -159,31 +159,31 @@ class GlElement(object):
         GL_LINES: 2,
         GL_POINTS: 1}
 
-    def __init__(self, gl_element, n_vertices=None):
+    def __init__(self, gl_element, n_vertices=None, n_instances=None):
         if gl_element in self._const_elements:
             if n_vertices:
                 assert n_vertices == self._const_elements[gl_element]
             else:
                 n_vertices = self._const_elements[gl_element]
+
         self.element = gl_element
-        self.n_vertices = n_vertices # per 1 element
+        self.n_vertices  = n_vertices  # per 1 element
+        self.n_instances = n_instances
 
     def __repr__(self):
         return 'GlElements(%s, %d)' % (repr(self.element), self.n_vertices)
 
     def glDraw(self, starting_array_index, n_elements):
-        if self.element in self._const_elements:
+        if self.n_instances:
+            n_vertices_to_draw = n_elements * self.n_vertices
+            glDrawArraysInstanced(self.element, starting_array_index, n_vertices_to_draw, self.n_instances)
+            starting_array_index += n_vertices_to_draw
+
+        else:
             # GL_TYPE, index in the common vertices array, N vertices to draw in this command
             n_vertices_to_draw = n_elements * self.n_vertices
             glDrawArrays(self.element, starting_array_index, n_vertices_to_draw)
             starting_array_index += n_vertices_to_draw
-        else:
-            # if it's element of varied amount of vertices
-            # draw in loop
-            for _ in range(n_elements):
-                n_vertices_to_draw = self.n_vertices
-                glDrawArrays(self.element, starting_array_index, n_vertices_to_draw)
-                starting_array_index += n_vertices_to_draw
 
             # with glDrawRangeElements
             #  glDrawRangeElements( GLenum ( mode ) , GLuint ( start ) , GLuint ( end ) , GLsizei ( count ) , GLenum ( type ) , const GLvoid * ( indices ) )-> void 
@@ -283,9 +283,18 @@ def random_circles_triangles(N_circles, r_size=0.3):
         numpy.row_stack(r*canonical_circle_fan + [x,y,0] for x,y,r in x_y_r))]), circle_colors
 
 
-N_circles = 20000
-#random_circles_drawing_spec, circle_colors = random_circles_fans     (N_circles, 0.005)
-random_circles_drawing_spec, circle_colors = random_circles_triangles(N_circles, 0.005)
+def random_circles_triangles_instances(N_circles, r_size=0.3):
+    # generate positions and colors of 1 circle
+    # radius is random within given value
+    radius = numpy.random.rand(1)*r_size 
+    # position = 0., 0., 0. shift added to the fan
+    circle_vertices = numpy.row_stack(radius*canonical_circle_fan + [0.,0.,0.])
+    # color is random for the cirlce, not for the instance
+    circle_colors  = [[r,g,b] for r,g,b in numpy.random.rand(1, 3) for _ in range(canonical_circle_n*3)]
+    # and positions for N_circles instances of this same circle
+    circle_centers = (numpy.random.rand(N_circles, 3) - [0.5, 0.5, 0.]) * 2
+    return GlObjects([(GlElement(GL_TRIANGLE_FAN, n_vertices=len(circle_vertices), n_instances=N_circles), circle_vertices)]), \
+        circle_colors, circle_centers
 
 
 
@@ -434,6 +443,8 @@ pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0.
 pointelements = [('line', 3), ('point', 3)]
 #pointelements = {'line': 3, 'point': 3} # need sorted dict, let's stick to just tuples
 
+instancepositions = [[0, 0., 0]]
+
 lines_vtx = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0., 0.7, 0], [-0.2, 0.5, 0]]
 #lines  = GlElements(GL_LINES, lines_vtx)
 points_vtx = [[0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
@@ -442,13 +453,18 @@ points_vtx = [[0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
 drawing_spec = GlObjects([(GlElement(GL_LINES), lines_vtx), (GlElement(GL_POINTS), points_vtx)])
 
 # circles
-drawing_spec = ones_circles_drawing_spec # random_circles_drawing_spec
-drawing_spec = random_circles_drawing_spec
-pointcolor = circle_colors
+#
+##print(repr(drawing_spec.elements_vtx))
+#print('shape %s' % repr(drawing_spec.elements_vtx.shape))
+#print(drawing_spec.elements_spec)
+#pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
 
-#print(repr(drawing_spec.elements_vtx))
-print('shape %s' % repr(drawing_spec.elements_vtx.shape))
-print(drawing_spec.elements_spec)
+N_circles = 20
+#random_circles_drawing_spec, circle_colors = random_circles_fans     (N_circles, 0.005)
+drawing_spec, pointcolor = random_circles_triangles(N_circles, 0.5)
+pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
+
+drawing_spec, pointcolor, instancepositions = random_circles_triangles_instances(N_circles, 0.1)
 pointdata, pointelements = drawing_spec.elements_vtx, drawing_spec.elements_spec
 
 N_lines = 3
@@ -540,12 +556,13 @@ def gl_window_program():
     vertex = create_shader(GL_VERTEX_SHADER,"""
       uniform float scale;
       uniform float shift_x, shift_y;
+      attribute vec3 instance_position;
       attribute vec3 position;
       attribute vec3 color;
       varying vec3 vertex_color;
       void main()
       {
-        vec4 Vertex = vec4(position, 1.0);
+        vec4 Vertex = vec4(instance_position + position, 1.0);
             Vertex.x += shift_x;
             Vertex.y += shift_y;
             Vertex.x *= scale;
@@ -583,8 +600,22 @@ def gl_window_program():
     # Request a buffer slot from GPU
     buffer = glGenBuffers(1)
 
+    print("buffer type", type(buffer)) # пишет numpy uint32
+
     # Make this buffer the default one
     glBindBuffer(GL_ARRAY_BUFFER, buffer)
+
+    '''
+    похоже тут необычный смысл Bind команд
+    1-ый параметр GL_ARRAY_BUFFER это "binding target"
+    после выполнения этой команды данная target указывает на тот буфер,
+    далее можно сделать bind этой target к другому буферу, что заменить этот "указатель" на новый буфер
+
+    видимо смысл в С-шности GL-евских команд,
+    т.е. дальнейшие команды, типа команды рисования, не получают буфер с которым работают явно,
+    а он подразумевается,
+    binding targets это глобальные поинтеры к объектам системы
+    '''
 
     assert len(pointdata) == len(pointcolor)
 
@@ -609,6 +640,12 @@ def gl_window_program():
     glBindBuffer(GL_ARRAY_BUFFER, buffer)
     glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
 
+    '''т.е. что я тут делаю это нахожу атрибут вершин в шейдере,
+    enable этот attribArray
+    bind к моему единственному буферу (vbo?)
+    и даю команду как находить позиции в этом буфере для этого атрибута
+    '''
+
     offset = ctypes.c_void_p(data.dtype["position"].itemsize)
     loc = glGetAttribLocation(program, "color")
     glEnableVertexAttribArray(loc)
@@ -632,6 +669,34 @@ def gl_window_program():
         Must be 1, 2, 3, 4. Additionally, the symbolic constant GL_BGRA is accepted by glVertexAttribPointer.
         The initial value is 4.
     """
+
+    # итак, попробуем статичный инстанс, всегда хотя бы 1 инстанс и его vbo позиций,
+    # если надо -- можно больше
+
+    # Request a buffer slot from GPU
+    instance_buffer = glGenBuffers(1)
+
+    # Make this buffer the default one
+    glBindBuffer(GL_ARRAY_BUFFER, instance_buffer)
+
+    instance_positions = numpy.zeros(len(instancepositions), dtype = [ ("instance_position", np.float32, 3)] )
+
+    instance_positions['instance_position'] = instancepositions
+    # each is numpy array of 3-coordinate vectors
+
+    # upload
+    glBufferData(GL_ARRAY_BUFFER, instance_positions.nbytes, instance_positions, GL_DYNAMIC_DRAW)
+
+    stride = instance_positions.strides[0]
+
+    offset = ctypes.c_void_p(0)
+    loc = glGetAttribLocation(program, "instance_position") # новый шейдер имеет этот атрибут position
+    glEnableVertexAttribArray(loc)
+    glBindBuffer(GL_ARRAY_BUFFER, instance_buffer)
+    glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
+    # "modify the rate at which generic vertex attributes advance during instanced rendering"
+    glVertexAttribDivisor(loc, 1) # so it means step of 1 of 3floats (complex graphics programming..)
+
 
 
     # magic

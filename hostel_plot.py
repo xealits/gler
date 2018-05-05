@@ -119,6 +119,7 @@ def main():
     logging.info('vtx shape %s' % repr(drawing_spec.elements_vtx.shape))
     logging.info('elements  %s' % repr(drawing_spec.elements_spec))
     gler.pointdata, gler.pointcolor, gler.pointelements = drawing_spec.elements_vtx, flat_colors, drawing_spec.elements_spec
+    gler.instancepositions = [[0., 0., 0.]]
 
     gler.glThread.start()
 
