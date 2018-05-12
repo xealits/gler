@@ -152,6 +152,7 @@ gl_elements = {'triangle_fan': GL_TRIANGLE_FAN,
     'line': GL_LINES,
     'point': GL_POINTS}
 
+
 class GlElement(object):
     _const_elements = {
         GL_TRIANGLES: 3,
@@ -160,6 +161,11 @@ class GlElement(object):
         GL_POINTS: 1}
 
     def __init__(self, gl_element, n_vertices=None, n_instances=None):
+        '''
+        create vbo for element data (marker and instances if needed)
+        and set rules for drawing
+        '''
+
         if gl_element in self._const_elements:
             if n_vertices:
                 assert n_vertices == self._const_elements[gl_element]
@@ -705,7 +711,7 @@ def gl_window_program():
     instance_buffer = glGenBuffers(1)
 
     # Make this buffer the default one
-    glBindBuffer(GL_ARRAY_BUFFER, instance_buffer)
+    glBindBuffer(GL_ARRAY_BUFFER, instance_buffer) # -- ?
 
     instance_positions = numpy.zeros(len(instancepositions), dtype = [ ("instance_position", np.float32, 3)] )
 
@@ -720,7 +726,7 @@ def gl_window_program():
     offset = ctypes.c_void_p(0)
     loc = glGetAttribLocation(program, "instance_position") # новый шейдер имеет этот атрибут position
     glEnableVertexAttribArray(loc)
-    glBindBuffer(GL_ARRAY_BUFFER, instance_buffer)
+    glBindBuffer(GL_ARRAY_BUFFER, instance_buffer) # -- how come I bind another buffer to the same target?
     glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
     # "modify the rate at which generic vertex attributes advance during instanced rendering"
     glVertexAttribDivisor(loc, 1) # so it means step of 1 of 3floats (complex graphics programming..)
