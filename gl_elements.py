@@ -304,22 +304,23 @@ if __name__ == '__main__':
         circle_vertices = numpy.row_stack(radius*canonical_circle_fan + [0.,0.,0.])
 
         # color is random for the cirlce, not for the instance
-        circle_colors  = [[r,g,b] for r,g,b in numpy.random.rand(1, 3) for _ in range(canonical_circle_n*3)]
+        #circle_colors  = [[r,g,b] for r,g,b in numpy.random.rand(1, 3) for _ in range(canonical_circle_n*3)]
 
-        #data = numpy.zeros(len(circle_vertices), dtype = [("position", np.float32, 3)] )
-        data = numpy.zeros(len(circle_vertices), dtype = [("position", np.float32, 3),
-                                                          ("color", np.float32, 3)] )
+        data = numpy.zeros(len(circle_vertices), dtype = [("position", np.float32, 3)] )
+        #data = numpy.zeros(len(circle_vertices), dtype = [("position", np.float32, 3),
+        #                                                  ("color", np.float32, 3)] )
         data['position'] = circle_vertices
-        data['color']    = circle_colors
+        #data['color']    = circle_colors
         print(data)
 
         # and positions for N_circles instances of this same circle
         circle_centers = (numpy.random.rand(N_circles, 3) - [0.5, 0.5, 0.])# * 2
+        circle_colors  = numpy.random.rand(N_circles, 3)
 
-        #instances = numpy.zeros(len(circle_centers), dtype = [("instance_position", np.float32, 3),
-        #                                         ("color",    np.float32, 3)] )
-        instances = numpy.zeros(len(circle_centers), dtype = [("instance_position", np.float32, 3)] )
-        #instances['color']    = circle_colors
+        instances = numpy.zeros(len(circle_centers), dtype = [("instance_position", np.float32, 3),
+                                                 ("color",    np.float32, 3)] )
+        #instances = numpy.zeros(len(circle_centers), dtype = [("instance_position", np.float32, 3)] )
+        instances['color']    = circle_colors
         instances['instance_position'] = circle_centers
 
         return GlElement(GL_TRIANGLE_FAN, data, instances)
