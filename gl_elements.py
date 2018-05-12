@@ -65,6 +65,8 @@ class GlElement(object):
         then draw according to primitive and instancing rules
         '''
 
+        all_attribute_array_locations = []
+        instance_attribute_array_locations = []
         # processing the vertex buffer
 
         # attaching vertex buffer attributes to the program, setting parsing rules
@@ -78,6 +80,7 @@ class GlElement(object):
 
             # attach to the location in program
             loc = glGetAttribLocation(program, name)
+            all_attribute_array_locations.append(loc)
             print('at ' + str(loc))
             glEnableVertexAttribArray(loc)
             glBindBuffer(GL_ARRAY_BUFFER, self.vertices_buffer) # already bound, not sure if I need to repeate it
@@ -99,12 +102,16 @@ class GlElement(object):
             stride = self.instances.strides[0]
             offset = 0
             for name in self.instances.dtype.names:
+                print('attaching ' + name)
                 # same procedure
                 gl_offset = ctypes.c_void_p(offset)
                 offset += self.instances.dtype[name].itemsize
 
                 # attach to the location in program
                 loc = glGetAttribLocation(program, name)
+                all_attribute_array_locations.append(loc)
+                instance_attribute_array_locations.append(loc)
+                print('at ' + str(loc))
                 glEnableVertexAttribArray(loc)
                 glBindBuffer(GL_ARRAY_BUFFER, self.instances_buffer)
                 #glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
@@ -145,12 +152,25 @@ class GlElement(object):
         if self.instances is not None:
             print('drawing instances')
             n_instances = self.instances.shape[0]
-            return glDrawArraysInstanced(self.primitive, 0, n_vertices_to_draw, n_instances)
+            glDrawArraysInstanced(self.primitive, 0, n_vertices_to_draw, n_instances)
             # just drawing all vertices for all instances
 
         else:
             print('drawing primitives')
-            return glDrawArrays(self.primitive, 0, n_vertices_to_draw)
+            glDrawArrays(self.primitive, 0, n_vertices_to_draw)
+
+
+        # let's try unseting divisors
+        for loc in instance_attribute_array_locations:
+            glVertexAttribDivisor(loc, 0) # works!
+
+        # and try disabling all attribute arrays
+        for loc in all_attribute_array_locations:
+            glDisableVertexAttribArray(loc)
+
+        # unbind
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        return 0
 
 
 
@@ -264,7 +284,8 @@ if __name__ == '__main__':
     #pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0., 0], [1, 1, 0], [0, 1, 1], [1, 0, 1]]
 
     pointdata  = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0]]
-    pointcolor = [  [1, 1, 0],       [0, 1, 1],      [1, 0, 1]]
+    #pointcolor = [  [1, 1, 0],       [0, 1, 1],      [1, 0, 1]]
+    pointcolor = [  [0, 0, 1],       [0, 1, 1],      [1, 0, 1]]
 
     data = numpy.zeros(len(pointdata), dtype = [ ("position", np.float32, 3),
                                                  ("color",    np.float32, 3)] )
@@ -276,7 +297,8 @@ if __name__ == '__main__':
     # each is numpy array of 3-coordinate vectors
 
     linepoints = [[-0.7, -0.5, 0], [-0.5, 0.7, 0], [-0.2, 0.5, 0], [0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
-    linecolor  = [    [0., 0., 1],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
+    #linecolor  = [    [0., 0., 1],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
+    linecolor  = [    [1., 1., 0],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
 
     linedata = numpy.zeros(len(linepoints), dtype = [("position", np.float32, 3),
                                                  ("color",    np.float32, 3)] )
@@ -325,10 +347,21 @@ if __name__ == '__main__':
 
         return GlElement(GL_TRIANGLE_FAN, data, instances)
 
-    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata)]
+    #elements = [GlElement(GL_TRIANGLES, data)]
     #elements = [GlElement(GL_LINES, linedata)]
+    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata)]
     #elements = [random_circles_triangles_instances(3)]
-    elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
+    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
+
+    # after resizing window everything shifts and accept circles changes color
+    # having issues with initializing the shader instance_position param?
+
+    zero_instance = numpy.zeros(1, dtype = [("instance_position", np.float32, 3)] )
+    elements = [GlElement(GL_TRIANGLES, data, zero_instance), GlElement(GL_LINES, linedata, zero_instance), random_circles_triangles_instances(3)]
+
+    # now position is good, bu triangle becomes yellow and lines blue
+    # does not matter which color are the circles
+    # the color comes from color of first vertex in the buffer
 
     # Запускаем основной цикл
     glutMainLoop()
