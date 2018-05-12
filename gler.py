@@ -303,7 +303,7 @@ def random_circles_triangles_instances(N_circles, r_size=0.3):
 def draw():
     '''
     это вызывается Н раз в секунду на ЦПУ
-    тут должны быть только команды для рендеринга
+    тут должны быть только команды ОпенЖЭлю для рендеринга
     типа "рисуй то-то и то-то"
     не должно быть перезагрузки самих данных
 
@@ -313,6 +313,27 @@ def draw():
     сейчас массив вершин и цвет будут изначально
     '''
     glClear(GL_COLOR_BUFFER_BIT)                    # Очищаем экран и заливаем серым цветом
+    # эта команда очищает буфер цвета
+    # заполняя его дефаултным цветом. который задаётся через glClearColor
+
+    '''
+    из туториала alfonse тут можно было задать:
+    glUseProgram(prog_obj)                                     -- shader to use by all subsequent commands
+
+    # set state of OpenGL system,
+    # the buffers and how to read them into shader
+    glBindBuffer(<target like GL_ARRAY_BUFFER>, <vbo buffer>)  -- buffer for "target"
+          i.e. a "binding point" (like mounting point) of OpenGL system
+    glEnableVertexAttribArray(0)
+    glVertexAttribPointer(0, 4, ...)
+    # I do these in initialization of the program
+    # for pointdata, pointcolor and instances
+
+    glDrawArrays   -- it's wrapped in element.glDraw in the following
+    glDisableVertexAttribArray(0)
+    glUseProgram(0)
+    glutSwapBuffers()  --- swaps the double-buffered framebuffer
+    '''
 
     initial_point = 0
     '''
@@ -629,7 +650,14 @@ def gl_window_program():
     # Upload data
     glBufferData(GL_ARRAY_BUFFER, data.nbytes, data, GL_DYNAMIC_DRAW)
 
-    # and we need to _bind_ it
+    # далее мы указываем как читать элементы буфера в параметры шейдера
+    # в принципе это можно делать во время рендеринга для каждого элемента и его буфера
+    # но раз тут всё статично, есть только 1 буфер, то это делается 1 раз
+    # я же хочу сделать композитные маркеры, когда рисуются множество примитивов вместе
+    # мне нужно здесь создать буферы для каждого элемента, загрузить их на видяху (инициализация на видяхе)
+    # потом в рендеринге отрисовывать их в списке
+    # по тем же правилам в элементе что создают буферы
+
     # stride -- между вешинами, офсет -- внутри вершины
 
     stride = data.strides[0]
@@ -649,7 +677,7 @@ def gl_window_program():
     offset = ctypes.c_void_p(data.dtype["position"].itemsize)
     loc = glGetAttribLocation(program, "color")
     glEnableVertexAttribArray(loc)
-    glBindBuffer(GL_ARRAY_BUFFER, buffer)
+    glBindBuffer(GL_ARRAY_BUFFER, buffer) # no need to bind it third time here?
     glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
 
     # что это за 3 и 4? размеры векторов в вершине? почему не 2, 4?
