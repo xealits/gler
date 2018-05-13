@@ -152,13 +152,13 @@ class GlElement(object):
         n_vertices_to_draw = n_primitives * n_vertices
 
         if self.instances is not None:
-            print('drawing instances')
             n_instances = self.instances.shape[0]
+            print('drawing instances', n_instances, n_vertices_to_draw)
             glDrawArraysInstanced(self.primitive, 0, n_vertices_to_draw, n_instances)
             # just drawing all vertices for all instances
 
         else:
-            print('drawing primitives')
+            print('drawing primitives', n_vertices_to_draw)
             glDrawArrays(self.primitive, 0, n_vertices_to_draw)
 
 
@@ -311,6 +311,8 @@ if __name__ == '__main__':
     linedata['position'] = linepoints
     # each is numpy array of 3-coordinate vectors
 
+    print(linedata)
+
     # add some circles ontop
     canonical_circle_n = 50
     canonical_circle_x = np.cos([(np.pi*2*i)/canonical_circle_n for i in range(canonical_circle_n+1)])
@@ -355,18 +357,71 @@ if __name__ == '__main__':
     #elements = [GlElement(GL_LINES, linedata)]
     #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata)]
     #elements = [random_circles_triangles_instances(3)]
-    elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
-
-    # after resizing window everything shifts and accept circles changes color
-    # having issues with initializing the shader instance_position param?
+    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
 
     zero_instance = numpy.zeros(1, dtype = [("instance_position", np.float32, 3)] )
     #elements = [GlElement(GL_TRIANGLES, data, zero_instance), GlElement(GL_LINES, linedata, zero_instance), random_circles_triangles_instances(3)]
 
-    # now position is good, bu triangle becomes yellow and lines blue
-    # does not matter which color are the circles
-    # the color comes from color of first vertex in the buffer
+    # Tafte-like linear box-plot
+    zero_instance_white = numpy.zeros(1, dtype = [("instance_position", np.float32, 3),
+                                                  ("color", np.float32, 3)] )
+    zero_instance_white['color'] = [[1,1,1]]
+
+    # second coord is x ?
+    averages = np.array([[0.5, -0.7, 0]]) #, [-0.5,  0.7, 0], [-0.2,  0.5, 0], [-0.1, 0.1,0], [0.0, -0.3,0], [0.2, -0.1,0]]
+    q_u1     = np.array([[0.0,  0.1, 0]]) #, [ 0.05, 0.0, 0], [ 0.02, 0.0, 0], [ 0.1, 0.0,0], [0.05, 0.0,0], [0.1,  0.0,0]]
+    q_u2     = np.array([[0.0,  0.3, 0]]) #, [ 0.2,  0.0, 0], [ 0.2,  0.0, 0], [ 0.1, 0.0,0], [0.25, 0.0,0], [0.2,  0.0,0]]
+    q_d1     = np.array([[0.0,  0.1, 0]]) #, [ 0.05, 0.0, 0], [ 0.02, 0.0, 0], [ 0.1, 0.0,0], [0.05, 0.0,0], [0.1,  0.0,0]]
+    q_d2     = np.array([[0.0,  0.3, 0]]) #, [ 0.2,  0.0, 0], [ 0.2,  0.0, 0], [ 0.1, 0.0,0], [0.25, 0.0,0], [0.2,  0.0,0]]
+
+    # recalc actual coordinates around the average
+    q_u1 = averages + q_u1
+    q_u2 = q_u1 + q_u2
+
+    q_d1 = averages - q_u1
+    q_d2 = q_u1 - q_u2
+
+    q_pairs_u = []
+    q_pairs_d = []
+    for i in range(len(averages)):
+        q_pairs_u.append(q_u1[i])
+        q_pairs_u.append(q_u2[i])
+        q_pairs_d.append(q_d1[i])
+        q_pairs_d.append(q_d2[i])
+
+    averages = [[0.5, -0.7, 0]]
+
+    box_points = numpy.zeros(len(averages), dtype = [("position", np.float32, 3)])
+    box_points['position'] = averages
+
+    print(averages)
+    print(box_points)
+
+    box_lines_u = numpy.zeros(len(q_pairs_u), dtype = [("position", np.float32, 3)])
+    box_lines_u['position'] = q_pairs_u
+
+    box_lines_d = numpy.zeros(len(q_pairs_d), dtype = [("position", np.float32, 3)])
+    box_lines_d['position'] = q_pairs_d
+
+    #averages = [[0.5, -0.7, 0]]
+    #colors   = [[1.0,  1.0, 1]]
+
+    #box_points = numpy.zeros(len(averages), dtype = [("position", np.float32, 3),
+    #                                                 ("color", np.float32, 3)])
+    #box_points['position'] = averages
+    #box_points['color']    = colors
+    #elements = [GlElement(GL_POINTS, box_points)]
+
+    elements = [GlElement(GL_POINTS, box_points, zero_instance_white)]
+    #elements = [GlElement(GL_LINES, box_lines_u, zero_instance_white)]
+    #elements = [GlElement(GL_POINTS, box_points, zero_instance_white),
+    #            GlElement(GL_LINES, box_lines_u, zero_instance_white),
+    #            GlElement(GL_LINES, box_lines_d, zero_instance_white)]
+
+    # so now an additional point is drawn in the center of the window
+    # there is no such point in drawing primitives
 
     # Запускаем основной цикл
     glutMainLoop()
+
 
