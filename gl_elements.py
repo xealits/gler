@@ -15,8 +15,8 @@ class GlElement(object):
 
     def __init__(self, gl_primitive, vertices, instances=None):
         '''
-        create vbo for element data (marker and instances if needed)
-        and set rules for drawing
+        create one vao and vbos for element data (marker and instances if needed)
+        and set rules for drawing in the vao
 
         the rules must be:
            names from input numpy arrays are found in program and bound there
@@ -27,12 +27,46 @@ class GlElement(object):
         # инициализация на ГПУ
         # просто загрузим буферы, правила отрисовки -- при рендеринге
         # TODO: I assume OpenGL is already setup, need to add the setup rutienes here, make a complete svg_like module
+
+        # the vao of the full element
+        self.element_vao = glGenVertexArrays(1)
+        glBindVertexArray(self.element_vao)
+
+        # the vertices buffer
         self.vertices = vertices
         self.vertices_buffer = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vertices_buffer)
 
         # Upload data
         glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_DYNAMIC_DRAW)
+
+        # set the attribute layout in the vbo
+        # this description is saved in the bound vao
+
+        # attaching vertex buffer attributes to the program, setting parsing rules
+        stride = self.vertices.strides[0]
+        offset = 0
+        for name in self.vertices.dtype.names:
+            print('attaching ' + name)
+            # prepare offset for opengl parsing rule and shift it for the next item
+            gl_offset = ctypes.c_void_p(offset)
+            offset += self.vertices.dtype[name].itemsize
+
+            # attach to the location in program
+            loc = glGetAttribLocation(program, name)
+            print('at ' + str(loc))
+            glEnableVertexAttribArray(loc)
+            glBindBuffer(GL_ARRAY_BUFFER, self.vertices_buffer) # already bound, not sure if I need to repeate it
+            # probably it has something to do with binding all these buffers and instances to the same target
+            # probably Enable shifts the target of the target
+            #glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
+            #print(name, self.vertices[name].shape, self.vertices[name].shape[1])
+            n_coords = self.vertices[name].shape[1] # n coords in this attribute of the buffer
+            glVertexAttribPointer(loc, n_coords, GL_FLOAT, False, stride, gl_offset)
+
+            # in khronos tutorial (vaos and vbos) they run glEnable after here
+
+        # same for instance buffers
 
         if instances is not None:
             # Request a buffer slot from GPU
@@ -45,11 +79,43 @@ class GlElement(object):
 
             self.instances = instances
             self.instances_buffer = instance_buffer
+
+            glBindBuffer(GL_ARRAY_BUFFER, self.instances_buffer)
+
+            # attaching vertex buffer attributes to the program, setting parsing rules
+            stride = self.instances.strides[0]
+            offset = 0
+            for name in self.instances.dtype.names:
+                print('attaching ' + name)
+                # same procedure
+                gl_offset = ctypes.c_void_p(offset)
+                offset += self.instances.dtype[name].itemsize
+
+                # attach to the location in program
+                loc = glGetAttribLocation(program, name)
+                print('at ' + str(loc))
+                glEnableVertexAttribArray(loc)
+                glBindBuffer(GL_ARRAY_BUFFER, self.instances_buffer)
+                #glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
+                n_coords = self.instances[name].shape[1] # n coords in this attribute of the buffer
+                glVertexAttribPointer(loc, n_coords, GL_FLOAT, False, stride, gl_offset)
+
+                # and the step for instances
+                glVertexAttribDivisor(loc, 1)
+                # so it means step of 1 of n_coord floats of the insance attribute
+                # TODO: need to add other types than floats
+
         else:
             self.instances = None
 
-        # and unbind
+        # and unbind the vbo target
         glBindBuffer(GL_ARRAY_BUFFER, 0)
+        # khronos tutorial says I can delete vbo buffers
+        # they are just pointers
+        # since vbos are tracked in vao they won't be cleaned up
+
+        # and the vao
+        glBindVertexArray(0)
 
     def __repr__(self):
         if self.instances:
@@ -65,77 +131,13 @@ class GlElement(object):
         then draw according to primitive and instancing rules
         '''
 
-        all_attribute_array_locations = []
-        instance_attribute_array_locations = []
-        # processing the vertex buffer
+        #all_attribute_array_locations = []
+        #instance_attribute_array_locations = []
 
-        # attaching vertex buffer attributes to the program, setting parsing rules
-        stride = self.vertices.strides[0]
-        offset = 0
-        for name in self.vertices.dtype.names:
-            print('attaching ' + name)
-            # prepare offset for opengl parsing rule and shift it for the next item
-            gl_offset = ctypes.c_void_p(offset)
-            offset += self.vertices.dtype[name].itemsize
+        # all is set in vao
+        # bind it
+        glBindVertexArray(self.element_vao)
 
-            # attach to the location in program
-            loc = glGetAttribLocation(program, name)
-            all_attribute_array_locations.append(loc)
-            print('at ' + str(loc))
-            glEnableVertexAttribArray(loc)
-            glBindBuffer(GL_ARRAY_BUFFER, self.vertices_buffer) # already bound, not sure if I need to repeate it
-            # probably it has something to do with binding all these buffers and instances to the same target
-            # probably Enable shifts the target of the target
-            #glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
-            #print(name, self.vertices[name].shape, self.vertices[name].shape[1])
-            n_coords = self.vertices[name].shape[1] # n coords in this attribute of the buffer
-            glVertexAttribPointer(loc, n_coords, GL_FLOAT, False, stride, gl_offset)
-
-        # now instances
-        # TODO: weirdly they are bound to the same target, I don't know how it works
-
-        if self.instances is not None:
-            print('instancing')
-            glBindBuffer(GL_ARRAY_BUFFER, self.instances_buffer)
-
-            # attaching vertex buffer attributes to the program, setting parsing rules
-            stride = self.instances.strides[0]
-            offset = 0
-            for name in self.instances.dtype.names:
-                print('attaching ' + name)
-                # same procedure
-                gl_offset = ctypes.c_void_p(offset)
-                offset += self.instances.dtype[name].itemsize
-
-                # attach to the location in program
-                loc = glGetAttribLocation(program, name)
-                all_attribute_array_locations.append(loc)
-                instance_attribute_array_locations.append(loc)
-                print('at ' + str(loc))
-                glEnableVertexAttribArray(loc)
-                glBindBuffer(GL_ARRAY_BUFFER, self.instances_buffer)
-                #glVertexAttribPointer(loc, 3, GL_FLOAT, False, stride, offset)
-                n_coords = self.instances[name].shape[1] # n coords in this attribute of the buffer
-                glVertexAttribPointer(loc, n_coords, GL_FLOAT, False, stride, gl_offset)
-
-                # and the step for instances
-                glVertexAttribDivisor(loc, 1)
-                # so it means step of 1 of n_coord floats of the insance attribute
-                # TODO: need to add other types than floats
-
-        '''
-        if gl_element in self._const_elements:
-            if n_vertices:
-                assert n_vertices == self._const_elements[gl_element]
-            else:
-                n_vertices = self._const_elements[gl_element]
-
-        self.element = gl_element
-        self.n_vertices  = n_vertices  # per 1 element
-        self.n_instances = n_instances
-        '''
-
-        # all set,
         # now drawing rules
         # here I assume 1 attribute of the shader -- the vertices of the primitives
         # which are in "vertices" buffer
@@ -160,16 +162,18 @@ class GlElement(object):
             glDrawArrays(self.primitive, 0, n_vertices_to_draw)
 
 
-        # let's try unseting divisors
-        for loc in instance_attribute_array_locations:
-            glVertexAttribDivisor(loc, 0) # works!
+        # supposedly I don't need these anymore
+        ## let's try unseting divisors
+        #for loc in instance_attribute_array_locations:
+        #    glVertexAttribDivisor(loc, 0) # works!
 
-        # and try disabling all attribute arrays
-        for loc in all_attribute_array_locations:
-            glDisableVertexAttribArray(loc)
+        ## and try disabling all attribute arrays
+        #for loc in all_attribute_array_locations:
+        #    glDisableVertexAttribArray(loc)
 
         # unbind
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        #glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
         return 0
 
 
@@ -284,8 +288,8 @@ if __name__ == '__main__':
     #pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0., 0], [1, 1, 0], [0, 1, 1], [1, 0, 1]]
 
     pointdata  = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0]]
-    #pointcolor = [  [1, 1, 0],       [0, 1, 1],      [1, 0, 1]]
-    pointcolor = [  [0, 0, 1],       [0, 1, 1],      [1, 0, 1]]
+    pointcolor = [  [1, 1, 0],       [0, 1, 1],      [1, 0, 1]]
+    #pointcolor = [  [0, 0, 1],       [0, 1, 1],      [1, 0, 1]]
 
     data = numpy.zeros(len(pointdata), dtype = [ ("position", np.float32, 3),
                                                  ("color",    np.float32, 3)] )
@@ -297,8 +301,8 @@ if __name__ == '__main__':
     # each is numpy array of 3-coordinate vectors
 
     linepoints = [[-0.7, -0.5, 0], [-0.5, 0.7, 0], [-0.2, 0.5, 0], [0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
-    #linecolor  = [    [0., 0., 1],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
-    linecolor  = [    [1., 1., 0],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
+    linecolor  = [    [0., 0., 1],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
+    #linecolor  = [    [1., 1., 0],  [0., 1., 0],    [1., 0., 0],   [1, 1, 0],   [0, 1, 1],    [1, 0, 1]]
 
     linedata = numpy.zeros(len(linepoints), dtype = [("position", np.float32, 3),
                                                  ("color",    np.float32, 3)] )
@@ -351,13 +355,13 @@ if __name__ == '__main__':
     #elements = [GlElement(GL_LINES, linedata)]
     #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata)]
     #elements = [random_circles_triangles_instances(3)]
-    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
+    elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
 
     # after resizing window everything shifts and accept circles changes color
     # having issues with initializing the shader instance_position param?
 
     zero_instance = numpy.zeros(1, dtype = [("instance_position", np.float32, 3)] )
-    elements = [GlElement(GL_TRIANGLES, data, zero_instance), GlElement(GL_LINES, linedata, zero_instance), random_circles_triangles_instances(3)]
+    #elements = [GlElement(GL_TRIANGLES, data, zero_instance), GlElement(GL_LINES, linedata, zero_instance), random_circles_triangles_instances(3)]
 
     # now position is good, bu triangle becomes yellow and lines blue
     # does not matter which color are the circles

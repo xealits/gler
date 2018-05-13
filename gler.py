@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# from 
+# from https://habr.com/post/247123/
 # Импортируем все необходимые библиотеки:
 from OpenGL.GL import *
 from OpenGL.GLU import gluPerspective
