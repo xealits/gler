@@ -13,7 +13,7 @@ np = numpy
 
 class GlElement(object):
 
-    def __init__(self, gl_primitive, vertices, instances=None):
+    def __init__(self, program, gl_primitive, vertices, instances=None):
         '''
         create one vao and vbos for element data (marker and instances if needed)
         and set rules for drawing in the vao
@@ -22,6 +22,7 @@ class GlElement(object):
            names from input numpy arrays are found in program and bound there
         '''
 
+        self.program = program
         self.primitive = gl_primitive
 
         # инициализация на ГПУ
@@ -119,11 +120,11 @@ class GlElement(object):
 
     def __repr__(self):
         if self.instances:
-            return 'GlElement(%s, #%d vert, #%d inst)' % (repr(self.primitive), len(self.vertices), len(self.instances))
+            return 'GlElement(%s, %s, #%d vert, #%d inst)' % (repr(self.program), repr(self.primitive), len(self.vertices), len(self.instances))
         else:
-            return 'GlElement(%s, #%d vert)' % (repr(self.primitive), len(self.vertices))
+            return 'GlElement(%s, %s, #%d vert)' % (repr(self.program), repr(self.primitive), len(self.vertices))
 
-    def glDraw(self, program, vertices_name="position"):
+    def glDraw(self, vertices_name="position"):
         '''
         draw this element in OpenGL
         the element is bunch of vertices and instances if given
@@ -205,7 +206,7 @@ if __name__ == '__main__':
         glClear(GL_COLOR_BUFFER_BIT)
 
         for element in elements:
-            print(element.glDraw(program))
+            print(element.glDraw())
 
         glutSwapBuffers()
 
@@ -351,35 +352,41 @@ if __name__ == '__main__':
         instances['color']    = circle_colors
         instances['instance_position'] = circle_centers
 
-        return GlElement(GL_TRIANGLE_FAN, data, instances)
+        return GlElement(program, GL_TRIANGLE_FAN, data, instances)
 
-    #elements = [GlElement(GL_TRIANGLES, data)]
-    #elements = [GlElement(GL_LINES, linedata)]
-    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata)]
+    #elements = [GlElement(program, GL_TRIANGLES, data)]
+    #elements = [GlElement(program, GL_LINES, linedata)]
+    #elements = [GlElement(program, GL_TRIANGLES, data), GlElement(program, GL_LINES, linedata)]
     #elements = [random_circles_triangles_instances(3)]
-    #elements = [GlElement(GL_TRIANGLES, data), GlElement(GL_LINES, linedata), random_circles_triangles_instances(3)]
+    #elements = [GlElement(program, GL_TRIANGLES, data), GlElement(program, GL_LINES, linedata), random_circles_triangles_instances(3)]
 
     zero_instance = numpy.zeros(1, dtype = [("instance_position", np.float32, 3)] )
-    #elements = [GlElement(GL_TRIANGLES, data, zero_instance), GlElement(GL_LINES, linedata, zero_instance), random_circles_triangles_instances(3)]
+    #elements = [GlElement(program, GL_TRIANGLES, data, zero_instance), GlElement(program, GL_LINES, linedata, zero_instance), random_circles_triangles_instances(3)]
 
     # Tafte-like linear box-plot
     zero_instance_white = numpy.zeros(1, dtype = [("instance_position", np.float32, 3),
                                                   ("color", np.float32, 3)] )
     zero_instance_white['color'] = [[1,1,1]]
 
-    # second coord is x ?
-    averages = np.array([[0.5, -0.7, 0]]) #, [-0.5,  0.7, 0], [-0.2,  0.5, 0], [-0.1, 0.1,0], [0.0, -0.3,0], [0.2, -0.1,0]]
-    q_u1     = np.array([[0.0,  0.1, 0]]) #, [ 0.05, 0.0, 0], [ 0.02, 0.0, 0], [ 0.1, 0.0,0], [0.05, 0.0,0], [0.1,  0.0,0]]
-    q_u2     = np.array([[0.0,  0.3, 0]]) #, [ 0.2,  0.0, 0], [ 0.2,  0.0, 0], [ 0.1, 0.0,0], [0.25, 0.0,0], [0.2,  0.0,0]]
-    q_d1     = np.array([[0.0,  0.1, 0]]) #, [ 0.05, 0.0, 0], [ 0.02, 0.0, 0], [ 0.1, 0.0,0], [0.05, 0.0,0], [0.1,  0.0,0]]
-    q_d2     = np.array([[0.0,  0.3, 0]]) #, [ 0.2,  0.0, 0], [ 0.2,  0.0, 0], [ 0.1, 0.0,0], [0.25, 0.0,0], [0.2,  0.0,0]]
+    #averages = np.array([[0.7, -0.7, 0], [0.5, -0.5,  0], [0.2, -0.2,  0], [0.1,-0.1, 0], [-0.1, 0.0, 0], [-0.2, 0.2, 0]])
+    #q_u1     = np.array([[0.0,  0.1, 0], [0.0,  0.05, 0], [0.0,  0.02, 0], [0.0, 0.1, 0], [ 0.0, 0.05,0], [ 0.0, 0.1, 0]])
+    #q_u2     = np.array([[0.0,  0.3, 0], [0.0,  0.2,  0], [0.0,  0.2,  0], [0.0, 0.1, 0], [ 0.0, 0.25,0], [ 0.0, 0.2, 0]])
+    #q_d1     = np.array([[0.0,  0.1, 0], [0.0,  0.05, 0], [0.0,  0.02, 0], [0.0, 0.1, 0], [ 0.0, 0.05,0], [ 0.0, 0.1, 0]])
+    #q_d2     = np.array([[0.0,  0.3, 0], [0.0,  0.2,  0], [0.0,  0.2,  0], [0.0, 0.1, 0], [ 0.0, 0.25,0], [ 0.0, 0.2, 0]])
+
+    N_data = 20
+    averages = np.stack(((np.random.random(N_data) - 0.5)*2, (np.random.random(N_data) - 0.5) * 0.5, np.zeros(N_data)), axis=-1)
+    q_u1     = np.stack((np.zeros(N_data), np.random.random(N_data), np.zeros(N_data)), axis=-1) * 0.2
+    q_u2     = np.stack((np.zeros(N_data), np.random.random(N_data), np.zeros(N_data)), axis=-1) * 0.2
+    q_d1     = np.stack((np.zeros(N_data), np.random.random(N_data), np.zeros(N_data)), axis=-1) * 0.2
+    q_d2     = np.stack((np.zeros(N_data), np.random.random(N_data), np.zeros(N_data)), axis=-1) * 0.2
 
     # recalc actual coordinates around the average
     q_u1 = averages + q_u1
     q_u2 = q_u1 + q_u2
 
-    q_d1 = averages - q_u1
-    q_d2 = q_u1 - q_u2
+    q_d1 = averages - q_d1
+    q_d2 = q_d1 - q_d2
 
     q_pairs_u = []
     q_pairs_d = []
@@ -389,13 +396,10 @@ if __name__ == '__main__':
         q_pairs_d.append(q_d1[i])
         q_pairs_d.append(q_d2[i])
 
-    averages = [[0.5, -0.7, 0]]
+    #averages = [[0.5, -0.7, 0]]
 
     box_points = numpy.zeros(len(averages), dtype = [("position", np.float32, 3)])
     box_points['position'] = averages
-
-    print(averages)
-    print(box_points)
 
     box_lines_u = numpy.zeros(len(q_pairs_u), dtype = [("position", np.float32, 3)])
     box_lines_u['position'] = q_pairs_u
@@ -405,21 +409,31 @@ if __name__ == '__main__':
 
     #averages = [[0.5, -0.7, 0]]
     #colors   = [[1.0,  1.0, 1]]
-
     #box_points = numpy.zeros(len(averages), dtype = [("position", np.float32, 3),
     #                                                 ("color", np.float32, 3)])
     #box_points['position'] = averages
     #box_points['color']    = colors
-    #elements = [GlElement(GL_POINTS, box_points)]
+    #elements = [GlElement(program, GL_POINTS, box_points)] # works
 
-    elements = [GlElement(GL_POINTS, box_points, zero_instance_white)]
-    #elements = [GlElement(GL_LINES, box_lines_u, zero_instance_white)]
-    #elements = [GlElement(GL_POINTS, box_points, zero_instance_white),
-    #            GlElement(GL_LINES, box_lines_u, zero_instance_white),
-    #            GlElement(GL_LINES, box_lines_d, zero_instance_white)]
+    print(averages)
+    print(box_points)
+    print(zero_instance)
+    print(zero_instance_white)
+
+    #elements = [GlElement(program, GL_POINTS, box_points, zero_instance)] # and this works
+    #elements = [GlElement(program, GL_POINTS, box_points, zero_instance_white)]
+    #elements = [GlElement(program, GL_LINES, box_lines_u, zero_instance_white)]
+    #elements = [GlElement(program, GL_LINES, box_lines_d, zero_instance_white)]
+    elements = [GlElement(program, GL_POINTS, box_points, zero_instance_white),
+                GlElement(program, GL_LINES, box_lines_u, zero_instance_white),
+                GlElement(program, GL_LINES, box_lines_d, zero_instance_white)]
 
     # so now an additional point is drawn in the center of the window
     # there is no such point in drawing primitives
+
+    #elements = [random_circles_triangles_instances(1)] # this works
+
+    # not clear why the point at center is added, inctanced lines and circles are ok
 
     # Запускаем основной цикл
     glutMainLoop()
