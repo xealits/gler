@@ -50,7 +50,7 @@ class GlElement(object):
 
         # the vertices buffers
         for vert_def in vertices:
-            logging.debug("vert_def with names %s" % vert_def.dtype.names)
+            logging.debug("vert_def with names %s" % str(vert_def.dtype.names))
             vertices_buffer = glGenBuffers(1)
 
             # Upload data
@@ -229,8 +229,11 @@ class GlElement(object):
         logging.debug("up %d bytes" % full_def.nbytes)
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+def opengl_setup():
+    '''opengl_setup()
+
+    setup the OpenGL system
+    '''
 
     global g_Width
     global g_Height
@@ -336,6 +339,13 @@ if __name__ == '__main__':
 
     # Сообщаем OpenGL о необходимости использовать данную шейдерну программу при отрисовке объектов
     glUseProgram(program)
+
+    return program, draw # binding stuff needs this
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    program, draw_call = opengl_setup()
 
     #pointdata = [[0, 0.5, 0], [-0.5, -0.5, 0], [0.5, -0.5, 0], [-0.4, -0.1, 0], [0., 0.7, 0], [-0.2, 0.5, 0], [0.1,0.1,0], [0.2,0.3,0], [-0.1,0.1,0]]
     #pointcolor = [[1, 1, 0], [0, 1, 1], [1, 0, 1], [0., 0., 1], [0., 1., 0], [1., 0., 0], [1, 1, 0], [0, 1, 1], [1, 0, 1]]
@@ -515,6 +525,6 @@ if __name__ == '__main__':
         # update
         elements[0]['instance_position'] = circle_centers
         # draw
-        draw()
+        draw_call()
 
 
