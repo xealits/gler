@@ -6,7 +6,7 @@ simple prototype of general visual look
 # from 
 # Импортируем все необходимые библиотеки:
 from OpenGL.GL import *
-from OpenGL.GLU import gluPerspective
+from OpenGL.GLU import gluPerspective, gluLookAt
 from OpenGL.GLUT import *
 from OpenGL.arrays import vbo
 
@@ -21,12 +21,18 @@ from gl_elements import GlElement
 g_Width  = 500
 g_Height = 500
 
-zoom = 1.
+scale = 1.
 shift_x = 0.
 shift_y = 0.
 
-zoom_step = 1.1
+scale_step = 1.1
 shift_step = 0.1
+
+g_fViewDistance = 1.
+g_nearPlane = 1.
+g_farPlane  = 10000.
+
+zoom = 0.1
 
 # Процедура обработки специальных клавиш
 def specialkeys(key, x, y):
@@ -38,45 +44,52 @@ def specialkeys(key, x, y):
     mods = glutGetModifiers()
 
     # Сообщаем о необходимости использовать глобального массива pointcolor
-    global pointcolor, zoom, shift_x, shift_y
+    global pointcolor, scale, shift_x, shift_y, zoom
     # Обработчики специальных клавиш
-    # zoom
-    if key == GLUT_KEY_PAGE_UP: # zoom out
-        zoom /= zoom_step
-        glUniform1f(PARAM_scale, zoom)
+    # scale
+    if key == GLUT_KEY_PAGE_UP: # scale out
+        #scale /= scale_step
+        #glUniform1f(PARAM_scale, scale)
         #glTranslatef(0., 0., 0.02) # может это бы сработало? движение по Z
         # нет, оно ничего не зумит вид из камеры
-    if key == GLUT_KEY_PAGE_DOWN: # zoom in
-        zoom *= zoom_step
-        glUniform1f(PARAM_scale, zoom)
+        zoom -= 10
+    if key == GLUT_KEY_PAGE_DOWN: # scale in
+        #scale *= scale_step
+        #glUniform1f(PARAM_scale, scale)
+        zoom += 10
         #glTranslatef(0., 0., -0.02)
 
     # move around
+    # Z axis
+    if key == GLUT_KEY_F5:
+        glRotatef(5, 0, 0, 1)
+    elif key == GLUT_KEY_F6:
+        glRotatef(-5, 0, 0, 1)
     if key == GLUT_KEY_UP and mods == GLUT_ACTIVE_ALT:
         glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
     elif key == GLUT_KEY_UP:        # Клавиша вверх
         #glTranslate(0., -0.02, 0.)
-        shift_y -= shift_step / zoom
-        glUniform1f(PARAM_shift_Y, shift_y)
+        shift_x -= shift_step / scale
+        glUniform1f(PARAM_shift_X, shift_x)
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
         glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
     elif key == GLUT_KEY_DOWN:      # Клавиша вниз
         #glTranslate()
         #glTranslate(0., 0.02, 0.)
-        shift_y += shift_step / zoom
-        glUniform1f(PARAM_shift_Y, shift_y)
+        shift_x += shift_step / scale
+        glUniform1f(PARAM_shift_X, shift_x)
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
         glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
     elif key == GLUT_KEY_LEFT:        # Клавиша влево
         #glTranslate(0.02, 0., 0.)
-        shift_x += shift_step / zoom
-        glUniform1f(PARAM_shift_X, shift_x)
+        shift_y += shift_step / scale
+        glUniform1f(PARAM_shift_Y, shift_y)
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
         glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
     elif key == GLUT_KEY_RIGHT:       # Клавиша вправо
         #glTranslate(-0.02, 0., 0.)
-        shift_x -= shift_step / zoom
-        glUniform1f(PARAM_shift_X, shift_x)
+        shift_y -= shift_step / scale
+        glUniform1f(PARAM_shift_Y, shift_y)
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1
@@ -106,6 +119,19 @@ def reshape(width, height):
 def draw():
     #glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    # http://carloluchessa.blogspot.pt/2012/09/simple-viewer-in-pyopengl.html
+    # Set up viewing transformation, looking down -Z axis
+    glLoadIdentity()
+    #gluLookAt(0, 0, -g_fViewDistance, 0, 0, 0, -.1, 0, 0)   #-.1,0,0
+    # +Z
+    gluLookAt(0, 0, -g_fViewDistance, 0, 0, 0, .1, 0, 0)   #-.1,0,0
+
+    # Set perspective (also zoom)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluPerspective(zoom, float(g_Width)/float(g_Height), g_nearPlane, g_farPlane)
+    glMatrixMode(GL_MODELVIEW)
 
     for element in elements:
         logging.debug(element.glDraw())
@@ -177,6 +203,7 @@ vertex = create_shader(GL_VERTEX_SHADER,"""
          Vertex.x *= scale;
          Vertex.y *= scale;
          Vertex.z *= scale;
+         Vertex.z += (Vertex.x*Vertex.x + Vertex.y*Vertex.y);
     gl_Position = gl_ModelViewProjectionMatrix * Vertex;
     vertex_color = color;
   } """)
@@ -280,7 +307,7 @@ if __name__ == '__main__':
     #canonical_tetrahedron = np.array([a, b, c,
     #                                  a, b, d])
 
-    def random_tetraheders(N_instances, r_size=0.3, random_position=False):
+    def random_tetraheders(N_instances, r_size=0.3, random_position=False, spread=[1,1,0.1]):
         data = numpy.zeros(len(canonical_tetrahedron), dtype = [("position", np.float32, 3),
                                                                 ("color", np.float32, 3)] )
         data['position'] = canonical_tetrahedron*r_size
@@ -298,17 +325,26 @@ if __name__ == '__main__':
         # for fast updating of the position color and position are separate vbos
         instances_position = numpy.zeros(N_instances, dtype = [("instance_position", np.float32, 3)])
         if random_position:
-            instances_position['instance_position'] = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0]) * [1,1,0.1]
+            #instances_position['instance_position'] = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0]) * spread
             # less span in z axis
+            # circular distr
+            # numpy.column_stack((numpy.random.rand(5), numpy.ones(5)))
+            zis = numpy.random.rand(N_instances) * spread[2]
+            angles = (np.random.random(N_instances) - 0.5) * 2 * np.pi
+            rads   = np.random.random(N_instances)*0.1 + 20
+            xis = np.cos(angles)
+            yis = np.sin(angles)
+            positions = np.column_stack((xis*rads, yis*rads, zis))
+            instances_position['instance_position'] = positions + [0.5, 0.5, 0]
 
         #return GlElement(program, GL_TRIANGLE_STRIP, [data], [instances_position])
         return GlElement(program, GL_TRIANGLES, [data], [instances_position])
 
 
     # testing updates
-    N_instances = 5
+    N_instances = 500
     #elements = [random_circles_triangles_instances(N_instances)]
-    elements = [random_tetraheders(N_instances, 0.2, random_position=True)]
+    elements = [random_tetraheders(N_instances, 0.5, random_position=True, spread=[100,1,0.1])]
 
     # Запускаем основной цикл
     #glutMainLoop()
