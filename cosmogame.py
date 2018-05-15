@@ -24,15 +24,17 @@ g_Height = 500
 scale = 1.
 shift_x = 0.
 shift_y = 0.
+tilt_x = 0.
+tilt_y = 0.
 
 scale_step = 1.1
-shift_step = 0.1
+shift_step = 1.0
 
-g_fViewDistance = 1.
+g_fViewDistance = 10.
 g_nearPlane = 1.
 g_farPlane  = 10000.
 
-zoom = 0.1
+zoom = -10.
 
 # Процедура обработки специальных клавиш
 def specialkeys(key, x, y):
@@ -44,7 +46,7 @@ def specialkeys(key, x, y):
     mods = glutGetModifiers()
 
     # Сообщаем о необходимости использовать глобального массива pointcolor
-    global pointcolor, scale, shift_x, shift_y, zoom
+    global pointcolor, scale, shift_x, shift_y, zoom, tilt_x, tilt_y, g_fViewDistance
     # Обработчики специальных клавиш
     # scale
     if key == GLUT_KEY_PAGE_UP: # scale out
@@ -52,44 +54,54 @@ def specialkeys(key, x, y):
         #glUniform1f(PARAM_scale, scale)
         #glTranslatef(0., 0., 0.02) # может это бы сработало? движение по Z
         # нет, оно ничего не зумит вид из камеры
-        zoom -= 10
+        g_fViewDistance += 5
     if key == GLUT_KEY_PAGE_DOWN: # scale in
         #scale *= scale_step
         #glUniform1f(PARAM_scale, scale)
-        zoom += 10
         #glTranslatef(0., 0., -0.02)
+        g_fViewDistance -= 5
 
+    shift_val = shift_step / scale
     # move around
     # Z axis
     if key == GLUT_KEY_F5:
-        glRotatef(5, 0, 0, 1)
+        #glRotatef(5, 0, 0, 1)
+        zoom -= 1
     elif key == GLUT_KEY_F6:
-        glRotatef(-5, 0, 0, 1)
+        #glRotatef(-5, 0, 0, 1)
+        zoom += 1
+
     if key == GLUT_KEY_UP and mods == GLUT_ACTIVE_ALT:
-        glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
+        #glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
+        tilt_y += shift_val
     elif key == GLUT_KEY_UP:        # Клавиша вверх
         #glTranslate(0., -0.02, 0.)
-        shift_x -= shift_step / scale
-        glUniform1f(PARAM_shift_X, shift_x)
+        shift_y += shift_val
+        #glUniform1f(PARAM_shift_Y, shift_y)
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
-        glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
+        #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
+        tilt_y -= shift_val
     elif key == GLUT_KEY_DOWN:      # Клавиша вниз
         #glTranslate()
         #glTranslate(0., 0.02, 0.)
-        shift_x += shift_step / scale
-        glUniform1f(PARAM_shift_X, shift_x)
+        shift_y -= shift_val
+        #glUniform1f(PARAM_shift_Y, shift_y)
+
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
-        glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
+        #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
+        tilt_x += shift_val
     elif key == GLUT_KEY_LEFT:        # Клавиша влево
         #glTranslate(0.02, 0., 0.)
-        shift_y += shift_step / scale
-        glUniform1f(PARAM_shift_Y, shift_y)
+        shift_x += shift_val
+        #glUniform1f(PARAM_shift_X, shift_x)
+
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
-        glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
+        #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
+        tilt_x -= shift_val
     elif key == GLUT_KEY_RIGHT:       # Клавиша вправо
         #glTranslate(-0.02, 0., 0.)
-        shift_y -= shift_step / scale
-        glUniform1f(PARAM_shift_Y, shift_y)
+        shift_x -= shift_val
+        #glUniform1f(PARAM_shift_X, shift_x)
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1
@@ -125,12 +137,23 @@ def draw():
     glLoadIdentity()
     #gluLookAt(0, 0, -g_fViewDistance, 0, 0, 0, -.1, 0, 0)   #-.1,0,0
     # +Z
-    gluLookAt(0, 0, -g_fViewDistance, 0, 0, 0, .1, 0, 0)   #-.1,0,0
+    #gluLookAt(0, 0, -g_fViewDistance, 0, 0, 0, .1, 0, 0)   #-.1,0,0
+    #gluLookAt(0, 0, -g_fViewDistance, 0, 0, 0, 0, 1, 0)   #-.1,0,0
+    # from opengl-tutorial:
+    # frist 3  -- camera position
+    # second 3 -- camera target, where it looks at -- the point/postition, where it looks at
+    # last 3   -- up vector, it's upside down if inverted,
+    #             and they suggest 0, 1, 0... -- which means "up is positive Y"
+
+    # and moving the camera:
+    gluLookAt(-shift_x-tilt_x, -shift_y-tilt_y, -g_fViewDistance, -shift_x, -shift_y, 0, 0, 1, 0)   #-.1,0,0
 
     # Set perspective (also zoom)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluPerspective(zoom, float(g_Width)/float(g_Height), g_nearPlane, g_farPlane)
+    # this float(g_Width)/float(g_Height) sets the camera angle
+    # and fixes the screen size/pixel coordinates issue
     glMatrixMode(GL_MODELVIEW)
 
     for element in elements:
@@ -188,6 +211,7 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #        Vertex.z *= scale;
 #    vec4 Vertex = vec4(position, 1.0);
 
+#        Vertex.z += (Vertex.x*Vertex.x + Vertex.y*Vertex.y);
 vertex = create_shader(GL_VERTEX_SHADER,"""
   uniform float scale;
   uniform float shift_x, shift_y;
@@ -203,7 +227,6 @@ vertex = create_shader(GL_VERTEX_SHADER,"""
          Vertex.x *= scale;
          Vertex.y *= scale;
          Vertex.z *= scale;
-         Vertex.z += (Vertex.x*Vertex.x + Vertex.y*Vertex.y);
     gl_Position = gl_ModelViewProjectionMatrix * Vertex;
     vertex_color = color;
   } """)
@@ -331,11 +354,11 @@ if __name__ == '__main__':
             # numpy.column_stack((numpy.random.rand(5), numpy.ones(5)))
             zis = numpy.random.rand(N_instances) * spread[2]
             angles = (np.random.random(N_instances) - 0.5) * 2 * np.pi
-            rads   = np.random.random(N_instances)*0.1 + 20
+            rads   = np.random.random(N_instances)*0.1 + 5
             xis = np.cos(angles)
             yis = np.sin(angles)
             positions = np.column_stack((xis*rads, yis*rads, zis))
-            instances_position['instance_position'] = positions + [0.5, 0.5, 0]
+            instances_position['instance_position'] = positions + [5, 5, 0]
 
         #return GlElement(program, GL_TRIANGLE_STRIP, [data], [instances_position])
         return GlElement(program, GL_TRIANGLES, [data], [instances_position])
