@@ -30,7 +30,7 @@ tilt_y = 0.
 scale_step = 1.1
 shift_step = 1.0
 
-g_fViewDistance = 10.
+g_fViewDistance = 100.
 g_nearPlane = 1.
 g_farPlane  = 10000.
 
@@ -77,7 +77,7 @@ def specialkeys(key, x, y):
     elif key == GLUT_KEY_UP:        # Клавиша вверх
         #glTranslate(0., -0.02, 0.)
         shift_y += shift_val
-        #glUniform1f(PARAM_shift_Y, shift_y)
+        glUniform1f(PARAM_shift_Y, shift_y)
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
         #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
         tilt_y -= shift_val
@@ -85,7 +85,7 @@ def specialkeys(key, x, y):
         #glTranslate()
         #glTranslate(0., 0.02, 0.)
         shift_y -= shift_val
-        #glUniform1f(PARAM_shift_Y, shift_y)
+        glUniform1f(PARAM_shift_Y, shift_y)
 
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
         #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
@@ -93,7 +93,7 @@ def specialkeys(key, x, y):
     elif key == GLUT_KEY_LEFT:        # Клавиша влево
         #glTranslate(0.02, 0., 0.)
         shift_x += shift_val
-        #glUniform1f(PARAM_shift_X, shift_x)
+        glUniform1f(PARAM_shift_X, shift_x)
 
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
         #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
@@ -101,7 +101,7 @@ def specialkeys(key, x, y):
     elif key == GLUT_KEY_RIGHT:       # Клавиша вправо
         #glTranslate(-0.02, 0., 0.)
         shift_x -= shift_val
-        #glUniform1f(PARAM_shift_X, shift_x)
+        glUniform1f(PARAM_shift_X, shift_x)
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1
@@ -211,7 +211,25 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #        Vertex.z *= scale;
 #    vec4 Vertex = vec4(position, 1.0);
 
-#        Vertex.z += (Vertex.x*Vertex.x + Vertex.y*Vertex.y);
+#         Vertex.x += shift_x;
+#         Vertex.y += shift_y;
+#         Vertex.z += sqrt((Vertex.x-shift_x)*(Vertex.x-shift_x) + (Vertex.y-shift_y)*(Vertex.y-shift_y));
+#         Vertex.z += ((Vertex.x-shift_x)*(Vertex.x-shift_x) + (Vertex.y-shift_y)*(Vertex.y-shift_y));
+#         Vertex.z += 2.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#         Vertex.z += 0.1*((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#         Vertex.z += 100.*exp(-1.0/(0.001+sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y))));
+
+# hyperbolic
+#         Vertex.z += 10.0*sqrt((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
+
+# angular
+#    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+
+#    float dist2 = ((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
+#    float dist = sqrt(dist2);
+#    float alpha = 0.15*dist/sqrt(dist2 + 16.);
+#         Vertex.z += dist/tan(alpha);
+
 vertex = create_shader(GL_VERTEX_SHADER,"""
   uniform float scale;
   uniform float shift_x, shift_y;
@@ -222,11 +240,13 @@ vertex = create_shader(GL_VERTEX_SHADER,"""
   void main()
   {
     vec4 Vertex = vec4(instance_position + position, 1.0);
-         Vertex.x += shift_x;
-         Vertex.y += shift_y;
          Vertex.x *= scale;
          Vertex.y *= scale;
          Vertex.z *= scale;
+    float dist2 = ((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
+    float dist = sqrt(dist2);
+    float alpha = 0.15*dist/sqrt(dist2 + 16.);
+         Vertex.z += dist/tan(alpha);
     gl_Position = gl_ModelViewProjectionMatrix * Vertex;
     vertex_color = color;
   } """)
@@ -365,7 +385,7 @@ if __name__ == '__main__':
 
 
     # testing updates
-    N_instances = 500
+    N_instances = 100
     #elements = [random_circles_triangles_instances(N_instances)]
     elements = [random_tetraheders(N_instances, 0.5, random_position=True, spread=[100,1,0.1])]
 
