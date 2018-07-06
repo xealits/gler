@@ -222,6 +222,27 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 # hyperbolic
 #         Vertex.z += 10.0*sqrt((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
 
+# rotational projection of the hyperbolic on the surface
+# and also explicit hyperbolic shader, not conic
+
+#    float init_x = instance_position.x+shift_x;
+#    float init_y = instance_position.y+shift_y;
+#    float rad2 = init_x*init_x + init_y*init_y;
+#    float rad  = sqrt(rad2);
+#    float hyperbolic_z   = 10.0*sqrt(5.0 + rad2);
+#    float slope_tan  = rad/hyperbolic_z; // dz/dr = r/z
+#    float slope_tan2 = slope_tan * slope_tan;
+#    float slope_cos = 1 / sqrt(1+slope_tan2);
+#    float slope_sin = slope_tan / sqrt(1+slope_tan2);
+#    float rot_z = Vertex.z * slope_cos;
+#    float rot_r = Vertex.z * slope_sin;
+#    Vertex.z = hyperbolic_z - rot_z;
+#    rot_x = rot_r * init_x / rad;
+#    rot_y = rot_r * init_y / rad;
+#    Vertex.x += rot_x;
+#    Vertex.y += rot_y;
+
+
 # angular
 #    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
 
@@ -243,10 +264,24 @@ vertex = create_shader(GL_VERTEX_SHADER,"""
          Vertex.x *= scale;
          Vertex.y *= scale;
          Vertex.z *= scale;
-    float dist2 = ((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
-    float dist = sqrt(dist2);
-    float alpha = 0.15*dist/sqrt(dist2 + 16.);
-         Vertex.z += dist/tan(alpha);
+
+    float init_x = instance_position.x+shift_x;
+    float init_y = instance_position.y+shift_y;
+    float rad2 = init_x*init_x + init_y*init_y;
+    float rad  = sqrt(rad2);
+    float hyperbolic_z   = 10.0*sqrt(5.0 + rad2);
+    float slope_tan  = rad/hyperbolic_z; // dz/dr = r/z
+    float slope_tan2 = slope_tan * slope_tan;
+    float slope_cos = 1 / sqrt(1+slope_tan2);
+    float slope_sin = slope_tan / sqrt(1+slope_tan2);
+    float rot_z = Vertex.z * slope_cos;
+    float rot_r = Vertex.z * slope_sin;
+    Vertex.z = hyperbolic_z - rot_z;
+    rot_x = rot_r * init_x / rad;
+    rot_y = rot_r * init_y / rad;
+    Vertex.x += rot_x;
+    Vertex.y += rot_y;
+
     gl_Position = gl_ModelViewProjectionMatrix * Vertex;
     vertex_color = color;
   } """)
