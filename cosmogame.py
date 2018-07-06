@@ -29,6 +29,7 @@ tilt_y = 0.
 
 scale_step = 1.1
 shift_step = 1.0
+tilt_step  = 0.01
 
 g_fViewDistance = 100.
 g_nearPlane = 1.
@@ -54,12 +55,12 @@ def specialkeys(key, x, y):
         #glUniform1f(PARAM_scale, scale)
         #glTranslatef(0., 0., 0.02) # может это бы сработало? движение по Z
         # нет, оно ничего не зумит вид из камеры
-        g_fViewDistance += 5
+        g_fViewDistance += 1
     if key == GLUT_KEY_PAGE_DOWN: # scale in
         #scale *= scale_step
         #glUniform1f(PARAM_scale, scale)
         #glTranslatef(0., 0., -0.02)
-        g_fViewDistance -= 5
+        g_fViewDistance -= 1
 
     shift_val = shift_step / scale
     # move around
@@ -73,35 +74,40 @@ def specialkeys(key, x, y):
 
     if key == GLUT_KEY_UP and mods == GLUT_ACTIVE_ALT:
         #glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
-        tilt_y += shift_val
+        tilt_y += tilt_step
     elif key == GLUT_KEY_UP:        # Клавиша вверх
         #glTranslate(0., -0.02, 0.)
         shift_y += shift_val
         glUniform1f(PARAM_shift_Y, shift_y)
+        #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
+
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
         #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
-        tilt_y -= shift_val
+        tilt_y -= tilt_step
     elif key == GLUT_KEY_DOWN:      # Клавиша вниз
         #glTranslate()
         #glTranslate(0., 0.02, 0.)
         shift_y -= shift_val
         glUniform1f(PARAM_shift_Y, shift_y)
+        #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
 
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
         #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
-        tilt_x += shift_val
+        tilt_x += tilt_step
     elif key == GLUT_KEY_LEFT:        # Клавиша влево
         #glTranslate(0.02, 0., 0.)
         shift_x += shift_val
         glUniform1f(PARAM_shift_X, shift_x)
+        #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
 
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
         #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
-        tilt_x -= shift_val
+        tilt_x -= tilt_step
     elif key == GLUT_KEY_RIGHT:       # Клавиша вправо
         #glTranslate(-0.02, 0., 0.)
         shift_x -= shift_val
         glUniform1f(PARAM_shift_X, shift_x)
+        #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1
@@ -144,9 +150,14 @@ def draw():
     # second 3 -- camera target, where it looks at -- the point/postition, where it looks at
     # last 3   -- up vector, it's upside down if inverted,
     #             and they suggest 0, 1, 0... -- which means "up is positive Y"
+    #             the "up" is the top of the window where the scene is rendered
 
     # and moving the camera:
-    gluLookAt(-shift_x-tilt_x, -shift_y-tilt_y, -g_fViewDistance, -shift_x, -shift_y, 0, 0, 1, 0)   #-.1,0,0
+    #gluLookAt(-shift_x-tilt_x, -shift_y-tilt_y, -g_fViewDistance, -shift_x, -shift_y, 0, 0, 1, 0)   #-.1,0,0
+    camera_x =   np.sin(tilt_y) * np.sin(tilt_x) * abs(g_fViewDistance)
+    camera_y = - np.sin(tilt_y) * np.cos(tilt_x) * abs(g_fViewDistance)
+    camera_z = - np.cos(tilt_y) * abs(g_fViewDistance)
+    gluLookAt(-shift_x+camera_x, -shift_y+camera_y, camera_z, -shift_x, -shift_y, 0, 0, 1, 0)   #-.1,0,0
 
     # Set perspective (also zoom)
     glMatrixMode(GL_PROJECTION)
@@ -221,6 +232,7 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 # hyperbolic
 #         Vertex.z += 10.0*sqrt((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
+#         Vertex.z += 10.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
 
 # rotational projection of the hyperbolic on the surface
 # and also explicit hyperbolic shader, not conic
@@ -250,6 +262,25 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #    float dist = sqrt(dist2);
 #    float alpha = 0.15*dist/sqrt(dist2 + 16.);
 #         Vertex.z += dist/tan(alpha);
+
+#    float dist2 = ((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
+#    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+
+
+#         Vertex.z += sqrt(Vertex.x*Vertex.x + Vertex.y*Vertex.y);
+
+#    float dist2 = ((Vertex.x)*(Vertex.x) + (Vertex.y)*(Vertex.y));
+#    float dist  = sqrt(dist2);
+#    float alpha = 0.15*dist/sqrt(dist2 + 16.);
+#         Vertex.z += dist/tan(alpha);
+
+#    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#    float dist = sqrt(dist2);
+#    float alpha = 0.15*dist/sqrt(dist2 + 16.);
+#         Vertex.z += dist/tan(alpha);
+
+#         Vertex.z += 10.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#         Vertex.z += 10.0*sqrt((Vertex.x)*(Vertex.x) + (Vertex.y)*(Vertex.y));
 
 vertex = create_shader(GL_VERTEX_SHADER,"""
   uniform float scale;
@@ -413,16 +444,63 @@ if __name__ == '__main__':
             xis = np.cos(angles)
             yis = np.sin(angles)
             positions = np.column_stack((xis*rads, yis*rads, zis))
-            instances_position['instance_position'] = positions + [5, 5, 0]
+            instances_position['instance_position'] = positions + [0, -15, 0]
 
         #return GlElement(program, GL_TRIANGLE_STRIP, [data], [instances_position])
         return GlElement(program, GL_TRIANGLES, [data], [instances_position])
 
 
     # testing updates
-    N_instances = 100
-    #elements = [random_circles_triangles_instances(N_instances)]
-    elements = [random_tetraheders(N_instances, 0.5, random_position=True, spread=[100,1,0.1])]
+    N_tetra = 100
+
+
+    block_a   = [-0.5, -0.5, -0.5]
+    block_b   = [-0.5,  0.5, -0.5]
+    block_c   = [ 0.5,  0.5, -0.5]
+    block_d   = [ 0.5, -0.5, -0.5]
+
+    block_a_t = [-0.5, -0.5,  0.5]
+    block_b_t = [-0.5,  0.5,  0.5]
+    block_c_t = [ 0.5,  0.5,  0.5]
+    block_d_t = [ 0.5, -0.5,  0.5]
+
+    # indicies are better for this
+    canonical_block = np.array([block_a,   block_b,   block_c,   block_d,
+                                block_a_t, block_b_t, block_c_t, block_d_t,
+                                block_a,   block_b,   block_b_t, block_a_t,
+                                block_b,   block_c,   block_c_t, block_b_t,
+                                block_c,   block_d,   block_d_t, block_c_t,
+                                block_d,   block_a,   block_a_t, block_d_t,
+                                      ])
+
+    def random_blocks(N_instances, r_size=0.5, spread=8.):
+        data = numpy.zeros(len(canonical_block), dtype = [("position", np.float32, 3),
+                                                          ("color",    np.float32, 3)] )
+        data['position'] = canonical_block*r_size
+        colors = []
+        #for color in numpy.random.rand(4, 3):
+        #    colors.append(color)
+        #    colors.append(color)
+        #    colors.append(color)
+        for color in [[1, 1, 0], [0, 1, 1], [1, 0, 1], [1, 0, 0], [0, 1, 0], [0, 0, 1]][:int(len(canonical_block)/4)]:
+            colors.append(color)
+            colors.append(color)
+            colors.append(color)
+            colors.append(color)
+        data['color']    = colors
+
+        instances_position = numpy.zeros(N_instances, dtype = [("instance_position", np.float32, 3)])
+        xis = (np.random.random(N_instances) - 0.5) * spread
+        yis = numpy.random.rand(N_instances) * 0.2
+        zis = numpy.random.rand(N_instances) * 0.1
+        positions = np.column_stack((xis, yis, zis))
+        instances_position['instance_position'] = positions
+
+        return GlElement(program, GL_QUADS, [data], [instances_position])
+
+    #elements = [random_circles_triangles_instances(N_tetra)]
+    elements = [random_tetraheders(N_tetra, 0.5, random_position=True, spread=[100,1,0.1]),
+                random_blocks(1, 5, 0.1)]
 
     # Запускаем основной цикл
     #glutMainLoop()
