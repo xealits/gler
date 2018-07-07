@@ -304,16 +304,16 @@ vertex = create_shader(GL_VERTEX_SHADER,"""
 
     float slope_tan  = rad / hyperbolic_z;
     float slope_tan2 = slope_tan * slope_tan;
-    float slope_cos = 1.0 / sqrt(1.0+slope_tan2);
-    float slope_sin = slope_tan / sqrt(1.0+slope_tan2);
-    float rot_z = - Vertex.z * slope_cos;
-    float rot_r =   Vertex.z * slope_sin;
+    float slope_cos =       1.0 / sqrt(1.0 + slope_tan2);
+    float slope_sin = slope_tan / sqrt(1.0 + slope_tan2);
+    float rot_z = - ( Vertex.z) * slope_cos;
+    float rot_r =   ( Vertex.z) * slope_sin;
     float rot_x = rot_r * init_x / rad;
     float rot_y = rot_r * init_y / rad;
 
-    Vertex.x += rot_x;
-    Vertex.y += rot_y;
-    Vertex.z  = hyperbolic_z + rot_z;
+    Vertex.x -= rot_x;
+    Vertex.y -= rot_y;
+    Vertex.z += hyperbolic_z - 3.0*rot_z;
 
     gl_Position = gl_ModelViewProjectionMatrix * Vertex;
     vertex_color = color;
