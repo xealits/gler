@@ -56,11 +56,13 @@ def specialkeys(key, x, y):
         #glTranslatef(0., 0., 0.02) # может это бы сработало? движение по Z
         # нет, оно ничего не зумит вид из камеры
         g_fViewDistance += 1
+        zoom += 0.01
     if key == GLUT_KEY_PAGE_DOWN: # scale in
         #scale *= scale_step
         #glUniform1f(PARAM_scale, scale)
         #glTranslatef(0., 0., -0.02)
         g_fViewDistance -= 1
+        zoom -= 0.01
 
     shift_val = shift_step / scale
     # move around
@@ -71,6 +73,12 @@ def specialkeys(key, x, y):
     elif key == GLUT_KEY_F6:
         #glRotatef(-5, 0, 0, 1)
         zoom += 1
+    elif key == GLUT_KEY_F7:
+        scale /= scale_step
+        glUniform1f(PARAM_scale, scale)
+    elif key == GLUT_KEY_F8:
+        scale *= scale_step
+        glUniform1f(PARAM_scale, scale)
 
     if key == GLUT_KEY_UP and mods == GLUT_ACTIVE_ALT:
         #glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
@@ -282,6 +290,10 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #         Vertex.z += 10.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
 #         Vertex.z += 10.0*sqrt((Vertex.x)*(Vertex.x) + (Vertex.y)*(Vertex.y));
 
+#         Vertex.x *= scale;
+#         Vertex.y *= scale;
+#         Vertex.z *= scale;
+
 vertex = create_shader(GL_VERTEX_SHADER,"""
   uniform float scale;
   uniform float shift_x, shift_y;
@@ -292,15 +304,12 @@ vertex = create_shader(GL_VERTEX_SHADER,"""
   void main()
   {
     vec4 Vertex = vec4(instance_position + position, 1.0);
-         Vertex.x *= scale;
-         Vertex.y *= scale;
-         Vertex.z *= scale;
 
     float init_x = instance_position.x + shift_x + position.x;
     float init_y = instance_position.y + shift_y + position.y;
     float rad2 = init_x*init_x + init_y*init_y;
     float rad  = sqrt(rad2);
-    float hyperbolic_z = 5.0*sqrt(1.0 + rad2);
+    float hyperbolic_z = 6.0*sqrt(1.0 + rad2);
 
     float slope_tan  = rad / hyperbolic_z;
     float slope_tan2 = slope_tan * slope_tan;
@@ -517,7 +526,8 @@ if __name__ == '__main__':
 
     #elements = [random_circles_triangles_instances(N_tetra)]
     elements = [random_tetraheders(N_tetra, 0.5, random_position=True, spread=[100,1,0.1]),
-                random_blocks(1, 5, 0.1)]
+                random_blocks(75)]
+                #random_blocks(1, 5, 0.1)]
 
     # Запускаем основной цикл
     #glutMainLoop()
