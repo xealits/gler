@@ -15,8 +15,10 @@ import logging
 import numpy
 np = numpy
 
-from gl_elements import GlElement
+import ctypes
+from ctypes import CDLL, cdll
 
+from gl_elements import GlElement
 
 g_Width  = 1000
 g_Height = 800
@@ -42,7 +44,7 @@ def specialkeys(key, x, y):
     '''
     вызывает функцию glRotatef(градус поворода, ось_Х, ось_У, ось_З)
     '''
-    print(key)
+    #print(key)
     #print(glutGetModifiers() == GLUT_ACTIVE_ALT)
     mods = glutGetModifiers()
 
@@ -536,9 +538,20 @@ if __name__ == '__main__':
                 random_blocks(75)]
 
     # Запускаем основной цикл
-    #glutMainLoop()
     from threading import Thread
-    glThread = Thread(target=glutMainLoop)
+    def graphic_thread():
+        # trying to init threads in X
+        libpath = "/usr/lib/x86_64-linux-gnu/libX11.so"
+        cdll.LoadLibrary( libpath )
+        lib = CDLL( libpath )
+        lib.XInitThreads()
+        # does not help
+
+        # and the glut
+        glutMainLoop()
+
+    glThread = Thread(target=graphic_thread)
+    #glThread = Thread(target=glutMainLoop)
     # threads crash from time to time with:
     #[xcb] Unknown request in queue while dequeuing
     #[xcb] Most likely this is a multi-threaded client and XInitThreads has not been called
@@ -556,29 +569,47 @@ if __name__ == '__main__':
     ##DRM_IOCTL_I915_GEM_CONTEXT_DESTROY failed: No such file or directory
     # this is why apple and microsoft rule desktop
 
-    glThread.start()
-
     logging.debug(repr(asteroid_angles))
     logging.debug(repr(asteroid_rads))
 
-    ##for _ in range(10):
-    while True:
-        sleep(0.05)
-        #print('foo')
-        # sim
-        #circle_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
-        #instance_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
-        # increment angle
-        asteroid_angles += 0.01
-        logging.debug(repr(asteroid_angles))
-        xis = np.cos(asteroid_angles)
-        yis = np.sin(asteroid_angles)
-        positions = np.column_stack((xis*asteroid_rads, yis*asteroid_rads, asteroid_zis))
-        asteroid_centers = positions + planet_center
-        # update
-        elements[0]['instance_position'] = asteroid_centers
-        # draw
-        draw()
+    def game():
+        global asteroid_angles, asteroid_rads, asteroid_zis
+        sleep(2.)
+        while True:
+            sleep(0.01)
+            #print('foo')
+            # sim
+            #circle_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
+            #instance_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
+            # increment angle
+            asteroid_angles += 0.005
+            logging.debug(repr(asteroid_angles))
+            xis = np.cos(asteroid_angles)
+            yis = np.sin(asteroid_angles)
+            positions = np.column_stack((xis*asteroid_rads, yis*asteroid_rads, asteroid_zis))
+            asteroid_centers = positions + planet_center
+            # update
+            elements[0]['instance_position'] = asteroid_centers
+            # draw
+            draw()
+            glutMainLoopEvent() # should substitute the mainloop
+
+    # thre graphics thread
+    #glThread.start()
+
+    ## try this fro sim part
+    #libpath = "/usr/lib/x86_64-linux-gnu/libX11.so"
+    #cdll.LoadLibrary( libpath )
+    #lib = CDLL( libpath )
+    #lib.XInitThreads()
+    ## does not help
+
+    game()
+
+    ## does not work
+    #gameThread = Thread(target=game)
+    #gameThread.start()
+    #glutMainLoop()
 
 
 
