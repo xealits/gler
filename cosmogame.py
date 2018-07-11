@@ -18,8 +18,8 @@ np = numpy
 from gl_elements import GlElement
 
 
-g_Width  = 500
-g_Height = 500
+g_Width  = 1000
+g_Height = 800
 
 scale = 1.
 shift_x = 0.
@@ -379,7 +379,7 @@ glUniform1f(PARAM_shift_Y, 0.)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     # add some circles ontop
     canonical_circle_n = 50
@@ -442,7 +442,10 @@ if __name__ == '__main__':
     #canonical_tetrahedron = np.array([a, b, c,
     #                                  a, b, d])
 
-    def random_tetraheders(N_instances, r_size=0.3, random_position=False, spread=[1,1,0.1]):
+    def random_tetraheders(N_instances, r_size=0.3,
+            random_position=False,
+            spread=[1,1,0.1],
+            central_position=[0, -15, 0]):
         data = numpy.zeros(len(canonical_tetrahedron), dtype = [("position", np.float32, 3),
                                                                 ("color", np.float32, 3)] )
         data['position'] = canonical_tetrahedron*r_size
@@ -470,10 +473,10 @@ if __name__ == '__main__':
             xis = np.cos(angles)
             yis = np.sin(angles)
             positions = np.column_stack((xis*rads, yis*rads, zis))
-            instances_position['instance_position'] = positions + [0, -15, 0]
+            instances_position['instance_position'] = positions + central_position
 
         #return GlElement(program, GL_TRIANGLE_STRIP, [data], [instances_position])
-        return GlElement(program, GL_TRIANGLES, [data], [instances_position])
+        return (rads, angles, zis), GlElement(program, GL_TRIANGLES, [data], [instances_position])
 
 
     # testing updates
@@ -499,7 +502,7 @@ if __name__ == '__main__':
                                 block_d,   block_a,   block_a_t, block_d_t,
                                       ])
 
-    def random_blocks(N_instances, r_size=0.5, spread=8.):
+    def random_blocks(N_instances, r_size=0.5, spread=8., central_position=[0., 0., 0.]):
         data = numpy.zeros(len(canonical_block), dtype = [("position", np.float32, 3),
                                                           ("color",    np.float32, 3)] )
         data['position'] = canonical_block*r_size
@@ -520,14 +523,17 @@ if __name__ == '__main__':
         yis = numpy.random.rand(N_instances) * 0.2
         zis = numpy.random.rand(N_instances) * 0.1
         positions = np.column_stack((xis, yis, zis))
-        instances_position['instance_position'] = positions
+        instances_position['instance_position'] = positions + central_position
 
         return GlElement(program, GL_QUADS, [data], [instances_position])
 
+    planet_center = [0., -15., 0.]
+    (asteroid_rads, asteroid_angles, asteroid_zis), asteroids = random_tetraheders(N_tetra, 0.5, random_position=True, spread=[100,1,0.1], central_position=planet_center)
+
     #elements = [random_circles_triangles_instances(N_tetra)]
-    elements = [random_tetraheders(N_tetra, 0.5, random_position=True, spread=[100,1,0.1]),
+    elements = [asteroids,
+                random_blocks(1, 5, 0.1, central_position=planet_center),
                 random_blocks(75)]
-                #random_blocks(1, 5, 0.1)]
 
     # Запускаем основной цикл
     #glutMainLoop()
@@ -552,17 +558,27 @@ if __name__ == '__main__':
 
     glThread.start()
 
+    logging.debug(repr(asteroid_angles))
+    logging.debug(repr(asteroid_rads))
+
     ##for _ in range(10):
-    #while True:
-    #    sleep(1)
-    #    #print('foo')
-    #    # sim
-    #    #circle_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
-    #    instance_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
-    #    # update
-    #    elements[0]['instance_position'] = instance_centers
-    #    # draw
-    #    draw()
+    while True:
+        sleep(0.05)
+        #print('foo')
+        # sim
+        #circle_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
+        #instance_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
+        # increment angle
+        asteroid_angles += 0.01
+        logging.debug(repr(asteroid_angles))
+        xis = np.cos(asteroid_angles)
+        yis = np.sin(asteroid_angles)
+        positions = np.column_stack((xis*asteroid_rads, yis*asteroid_rads, asteroid_zis))
+        asteroid_centers = positions + planet_center
+        # update
+        elements[0]['instance_position'] = asteroid_centers
+        # draw
+        draw()
 
 
 
