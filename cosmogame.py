@@ -91,6 +91,9 @@ def specialkeys(key, x, y):
         glUniform1f(PARAM_shift_Y, shift_y)
         #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
 
+        # update the ship
+        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
         #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
         tilt_y -= tilt_step
@@ -101,6 +104,9 @@ def specialkeys(key, x, y):
         glUniform1f(PARAM_shift_Y, shift_y)
         #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
 
+        # update the ship
+        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
         #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
         tilt_x += tilt_step
@@ -110,6 +116,9 @@ def specialkeys(key, x, y):
         glUniform1f(PARAM_shift_X, shift_x)
         #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
 
+        # update the ship
+        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
         #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
         tilt_x -= tilt_step
@@ -118,6 +127,9 @@ def specialkeys(key, x, y):
         shift_x -= shift_val
         glUniform1f(PARAM_shift_X, shift_x)
         #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
+
+        # update the ship
+        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1
@@ -431,6 +443,38 @@ if __name__ == '__main__':
 
 
 
+    # the ship
+    a = [-0.7,   0.0,  0.0]
+    b = [ 0.0,  -0.2,  0.0]
+    c = [ 0.0,   0.2,  0.0]
+    d = [-0.1,   0.0, -0.2]
+
+    canonical_ship = np.array([a, b, c,
+                               a, b, d,
+                               a, c, d,
+                               b, c, d])
+
+    ship_size = 1.0
+    ship_z = -0.5
+    ship_vertices = numpy.zeros(len(canonical_ship), dtype = [("position", np.float32, 3),
+                                                            ("color", np.float32, 3)] )
+    ship_vertices['position'] = canonical_ship*ship_size
+
+    ship_colors = []
+    for color in [[1, 1, 0], [0, 1, 1], [1, 0, 0], [1, 0, 0]][:int(len(canonical_ship)/3)]:
+        ship_colors.append(color)
+        ship_colors.append(color)
+        ship_colors.append(color)
+    ship_vertices['color']    = ship_colors
+
+    ship_instances_position = numpy.zeros(1, dtype = [("instance_position", np.float32, 3)])
+    ship_instances_position['instance_position'] = [shift_x, shift_y, ship_z]
+
+    #return (rads, angles, zis),
+    ship_element = GlElement(program, GL_TRIANGLES, [ship_vertices], [ship_instances_position])
+
+
+    # tetrahedrons for asteroids etc
     a = [-0.5,  0.0,  0.0]
     b = [ 0.0,  0.0,  0.0]
     c = [ 0.0,  0.5,  0.0]
@@ -441,13 +485,11 @@ if __name__ == '__main__':
                                       a, c, d,
                                       b, c, d])
 
-    #canonical_tetrahedron = np.array([a, b, c,
-    #                                  a, b, d])
-
     def random_tetraheders(N_instances, r_size=0.3,
             random_position=False,
             spread=[1,1,0.1],
-            central_position=[0, -15, 0]):
+            central_position=[0, -15, 0],
+            radius = 5.):
         data = numpy.zeros(len(canonical_tetrahedron), dtype = [("position", np.float32, 3),
                                                                 ("color", np.float32, 3)] )
         data['position'] = canonical_tetrahedron*r_size
@@ -471,7 +513,7 @@ if __name__ == '__main__':
             # numpy.column_stack((numpy.random.rand(5), numpy.ones(5)))
             zis = numpy.random.rand(N_instances) * spread[2]
             angles = (np.random.random(N_instances) - 0.5) * 2 * np.pi
-            rads   = np.random.random(N_instances)*0.1 + 5
+            rads   = np.random.random(N_instances)*0.1 + radius
             xis = np.cos(angles)
             yis = np.sin(angles)
             positions = np.column_stack((xis*rads, yis*rads, zis))
@@ -482,8 +524,26 @@ if __name__ == '__main__':
 
 
     # testing updates
-    N_tetra = 100
 
+
+    block_a   = [-4.0, -2.0, -0.5]
+    block_b   = [-4.0,  2.0, -0.5]
+    block_c   = [ 4.0,  2.0, -0.5]
+    block_d   = [ 4.0, -2.0, -0.5]
+
+    block_a_t = [-4.0, -2.0,  0.5]
+    block_b_t = [-4.0,  2.0,  0.5]
+    block_c_t = [ 4.0,  2.0,  0.5]
+    block_d_t = [ 4.0, -2.0,  0.5]
+
+    # indicies are better for this
+    canonical_paral = np.array([block_a,   block_b,   block_c,   block_d,
+                                block_a_t, block_b_t, block_c_t, block_d_t,
+                                block_a,   block_b,   block_b_t, block_a_t,
+                                block_b,   block_c,   block_c_t, block_b_t,
+                                block_c,   block_d,   block_d_t, block_c_t,
+                                block_d,   block_a,   block_a_t, block_d_t,
+                                      ])
 
     block_a   = [-0.5, -0.5, -0.5]
     block_b   = [-0.5,  0.5, -0.5]
@@ -496,15 +556,15 @@ if __name__ == '__main__':
     block_d_t = [ 0.5, -0.5,  0.5]
 
     # indicies are better for this
-    canonical_block = np.array([block_a,   block_b,   block_c,   block_d,
-                                block_a_t, block_b_t, block_c_t, block_d_t,
-                                block_a,   block_b,   block_b_t, block_a_t,
-                                block_b,   block_c,   block_c_t, block_b_t,
-                                block_c,   block_d,   block_d_t, block_c_t,
-                                block_d,   block_a,   block_a_t, block_d_t,
-                                      ])
+    canonical_cube = np.array([block_a,   block_b,   block_c,   block_d,
+                               block_a_t, block_b_t, block_c_t, block_d_t,
+                               block_a,   block_b,   block_b_t, block_a_t,
+                               block_b,   block_c,   block_c_t, block_b_t,
+                               block_c,   block_d,   block_d_t, block_c_t,
+                               block_d,   block_a,   block_a_t, block_d_t,
+                                     ])
 
-    def random_blocks(N_instances, r_size=0.5, spread=8., central_position=[0., 0., 0.]):
+    def random_blocks(N_instances, r_size=0.5, spread=8., central_position=[0., 0., 0.], canonical_block=canonical_paral):
         data = numpy.zeros(len(canonical_block), dtype = [("position", np.float32, 3),
                                                           ("color",    np.float32, 3)] )
         data['position'] = canonical_block*r_size
@@ -529,13 +589,19 @@ if __name__ == '__main__':
 
         return GlElement(program, GL_QUADS, [data], [instances_position])
 
-    planet_center = [0., -15., 0.]
-    (asteroid_rads, asteroid_angles, asteroid_zis), asteroids = random_tetraheders(N_tetra, 0.5, random_position=True, spread=[100,1,0.1], central_position=planet_center)
+    N_tetra = 100
+    planet_center = [-150., -15., 0.]
+    (satelites_rads, satelites_angles, satelites_zis), satelites = random_tetraheders(N_tetra, 0.5, random_position=True, spread=[100,1,0.1], central_position=planet_center)
+
+    system_center = [30., -300., 0.]
+    (asteroids_rads, asteroids_angles, asteroids_zis), asteroids = random_tetraheders(300, 0.5, random_position=True, spread=[100,1,0.1], central_position=system_center, radius = 310.)
 
     #elements = [random_circles_triangles_instances(N_tetra)]
-    elements = [asteroids,
-                random_blocks(1, 5, 0.1, central_position=planet_center),
-                random_blocks(75)]
+    elements = [satelites,
+                random_blocks(1, 5, 0.1, central_position=planet_center, canonical_block=canonical_cube),
+                asteroids,
+                random_blocks(75, central_position=[0., 5., 0.], spread=30.),
+                ship_element]
 
     # Запускаем основной цикл
     from threading import Thread
@@ -569,11 +635,13 @@ if __name__ == '__main__':
     ##DRM_IOCTL_I915_GEM_CONTEXT_DESTROY failed: No such file or directory
     # this is why apple and microsoft rule desktop
 
-    logging.debug(repr(asteroid_angles))
-    logging.debug(repr(asteroid_rads))
+    logging.debug(repr(satelites_angles))
+    logging.debug(repr(satelites_rads))
 
     def game():
-        global asteroid_angles, asteroid_rads, asteroid_zis
+        global satelites_angles, satelites_rads, satelites_zis
+        global asteroids_angles, asteroids_rads, asteroids_zis
+
         sleep(2.)
         while True:
             sleep(0.01)
@@ -582,14 +650,24 @@ if __name__ == '__main__':
             #circle_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
             #instance_centers = (numpy.random.rand(N_instances, 3) - [0.5, 0.5, 0.])# * 2
             # increment angle
-            asteroid_angles += 0.005
-            logging.debug(repr(asteroid_angles))
-            xis = np.cos(asteroid_angles)
-            yis = np.sin(asteroid_angles)
-            positions = np.column_stack((xis*asteroid_rads, yis*asteroid_rads, asteroid_zis))
-            asteroid_centers = positions + planet_center
+            satelites_angles += 0.005
+            logging.debug(repr(satelites_angles))
+            xis = np.cos(satelites_angles)
+            yis = np.sin(satelites_angles)
+            positions = np.column_stack((xis*satelites_rads, yis*satelites_rads, satelites_zis))
+            satelites_centers = positions + planet_center
             # update
-            elements[0]['instance_position'] = asteroid_centers
+            #elements[0]['instance_position'] = satelites_centers
+            satelites['instance_position'] = satelites_centers
+
+            asteroids_angles += 0.0001
+            xis = np.cos(asteroids_angles)
+            yis = np.sin(asteroids_angles)
+            positions = np.column_stack((xis*asteroids_rads, yis*asteroids_rads, asteroids_zis))
+            asteroids_centers = positions + system_center
+            # update
+            asteroids['instance_position'] = asteroids_centers
+
             # draw
             draw()
             glutMainLoopEvent() # should substitute the mainloop
