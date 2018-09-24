@@ -99,7 +99,7 @@ def specialkeys(key, x, y):
         #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
 
         # update the ship
-        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
 
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
         #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
@@ -112,7 +112,7 @@ def specialkeys(key, x, y):
         #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
 
         # update the ship
-        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
 
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
         #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
@@ -124,7 +124,7 @@ def specialkeys(key, x, y):
         #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
 
         # update the ship
-        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
 
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
         #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
@@ -136,7 +136,7 @@ def specialkeys(key, x, y):
         #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
 
         # update the ship
-        ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1

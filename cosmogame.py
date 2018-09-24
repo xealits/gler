@@ -9,6 +9,9 @@ from OpenGL.GL import *
 #       manual trigerring of the glut loop
 from OpenGL.GLUT import glutMainLoopEvent
 
+from gler2 import compile_and_load_program, hyperbolic_shader, draw, elements
+from gler2 import shift_x, shift_y
+
 from time import sleep
 import logging
 import numpy
@@ -16,9 +19,6 @@ np = numpy
 
 import ctypes
 from ctypes import CDLL, cdll
-
-from gler2 import compile_and_load_program, hyperbolic_shader, draw, elements
-from gler2 import shift_x, shift_y
 
 program = compile_and_load_program(hyperbolic_shader)
 
