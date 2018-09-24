@@ -17,6 +17,7 @@ class GlElement(object):
     def __init__(self, program, gl_primitive, vertices, instances=()):
         '''
         create one vao and vbos for element data (marker and instances if needed)
+        attach the to the shader program
         and set rules for drawing in the vao
 
         the rules must be:
