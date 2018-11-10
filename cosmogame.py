@@ -10,7 +10,7 @@ from OpenGL.GL import *
 from OpenGL.GLUT import glutMainLoopEvent
 
 from gler2 import compile_and_load_program, hyperbolic_shader, draw, elements
-from gler2 import shift_x, shift_y
+from gler2 import camera_position_x, camera_position_y
 
 from time import sleep
 import logging
@@ -98,14 +98,78 @@ if __name__ == '__main__':
     ship_vertices['color']    = ship_colors
 
     ship_instances_position = numpy.zeros(1, dtype = [("instance_position", np.float32, 3)])
-    ship_instances_position['instance_position'] = [shift_x, shift_y, ship_z]
+    ship_instances_position['instance_position'] = [camera_position_x, camera_position_y, ship_z]
 
     #return (rads, angles, zis),
     ship_element = GlElement(program, GL_TRIANGLES, [ship_vertices], [ship_instances_position])
-    # TODO: the hack with ship position
-    import gler2
-    gler2.ship_element = ship_element
-    gler2.ship_z = ship_z
+
+    ''' Now there is a problem with handling user inputs
+    I want to change the default behavior:
+    * I need to move the camera as usual
+    * and also update the ship's position.
+
+    Or in future I will need:
+    * update the ship's position and speed,
+    * update the camera to track the ship's position.
+
+    For now I want ot do this by passing a custom function to handle the user's input.
+    But then I need all kinds of internal parameters of gler to program it (camera_position_x etc).
+    Which is not very clean.
+    Let's simplify, clarify these parameters.
+
+    One of the pains is to have to change the full function for all keys, not just couple keys.
+    Let's implement this with couple handler-functions for now.
+
+    So later I'll have to do it the other way around:
+    * the game loop calculates the position of the ship, updates it
+    * and updates the camera's position
+    * the user's inputs only change some parameters in ship's movement
+    '''
+
+    import gler2 
+
+    # ad-hoc custom key handling functions
+    def custom_handle_key_up():
+        #glTranslate(0., -0.02, 0.)
+        gler2.camera_position_y += gler2.shift_val
+        glUniform1f(gler2.PARAM_center_y, gler2.camera_position_y)
+        #glUniform1f(PARAM_center_y, camera_position_y+camera_tilt_y)
+
+        # update the ship
+        ship_element['instance_position'] = [-gler2.camera_position_x, -gler2.camera_position_y, ship_z]
+
+    def custom_handle_key_down():
+        #glTranslate()
+        #glTranslate(0., 0.02, 0.)
+        gler2.camera_position_y -= gler2.shift_val
+        glUniform1f(gler2.PARAM_center_y, gler2.camera_position_y)
+        #glUniform1f(PARAM_center_y, camera_position_y+camera_tilt_y)
+
+        # update the ship
+        ship_element['instance_position'] = [-gler2.camera_position_x, -gler2.camera_position_y, ship_z]
+
+    def custom_handle_key_left():
+        #glTranslate(0.02, 0., 0.)
+        gler2.camera_position_x += gler2.shift_val
+        glUniform1f(gler2.PARAM_center_x, gler2.camera_position_x)
+        #glUniform1f(PARAM_center_x, camera_position_x+camera_tilt_x)
+
+        # update the ship
+        ship_element['instance_position'] = [-gler2.camera_position_x, -gler2.camera_position_y, ship_z]
+
+    def custom_handle_key_right():
+        #glTranslate(-0.02, 0., 0.)
+        gler2.camera_position_x -= gler2.shift_val
+        glUniform1f(gler2.PARAM_center_x, gler2.camera_position_x)
+        #glUniform1f(PARAM_center_x, camera_position_x+camera_tilt_x)
+
+        # update the ship
+        ship_element['instance_position'] = [-gler2.camera_position_x, -gler2.camera_position_y, ship_z]
+
+    gler2.handle_key_up    = custom_handle_key_up
+    gler2.handle_key_down  = custom_handle_key_down
+    gler2.handle_key_left  = custom_handle_key_left
+    gler2.handle_key_right = custom_handle_key_right
 
 
     # tetrahedrons for asteroids etc

@@ -29,13 +29,27 @@ g_Width  = 1000
 g_Height = 800
 
 scale = 1.
-shift_x = 0.
-shift_y = 0.
-tilt_x = 0.
-tilt_y = 0.
+
+camera_position_x = 0.
+camera_position_y = 0.
+camera_tilt_x = 0.
+camera_tilt_y = 0.
+
+'''
+camera position is defined by
+shift, tilt and g_fViewDistance
+
+shift and scale go into shader too
+  uniform float scale;
+  uniform float shift_x, shift_y;
+the shader calculates the warp according to the camera's position
+
+-- rename shift into camera_position
+'''
 
 scale_step = 1.1
 shift_step = 1.0
+shift_val  = shift_step / scale
 tilt_step  = 0.01
 
 g_fViewDistance = 100.
@@ -47,7 +61,52 @@ zoom = -10.
 # DRAWING PROCEDURES (COMMANDS FOR GL)
 
 # Процедура обработки специальных клавиш
-def specialkeys(key, x, y):
+
+# separate key-handler functions, the hooks for custom ui handling
+def handle_key_up():
+    global camera_position_y
+    #glTranslate(0., -0.02, 0.)
+    camera_position_y += shift_val
+    glUniform1f(PARAM_center_y, camera_position_y)
+    #glUniform1f(PARAM_center_y, camera_position_y+camera_tilt_y)
+
+    # update the ship
+    #ship_element['instance_position'] = [-camera_position_x, -camera_position_y, ship_z]
+
+def handle_key_down():
+    global camera_position_y
+    #glTranslate()
+    #glTranslate(0., 0.02, 0.)
+    camera_position_y -= shift_val
+    glUniform1f(PARAM_center_y, camera_position_y)
+    #glUniform1f(PARAM_center_y, camera_position_y+camera_tilt_y)
+
+    # update the ship
+    #ship_element['instance_position'] = [-camera_position_x, -camera_position_y, ship_z]
+
+def handle_key_left():
+    global camera_position_x
+    #glTranslate(0.02, 0., 0.)
+    camera_position_x += shift_val
+    glUniform1f(PARAM_center_x, camera_position_x)
+    #glUniform1f(PARAM_center_x, camera_position_x+camera_tilt_x)
+
+    # update the ship
+    #ship_element['instance_position'] = [-camera_position_x, -camera_position_y, ship_z]
+
+def handle_key_right():
+    global camera_position_x
+    #glTranslate(-0.02, 0., 0.)
+    camera_position_x -= shift_val
+    glUniform1f(PARAM_center_x, camera_position_x)
+    #glUniform1f(PARAM_center_x, camera_position_x+camera_tilt_x)
+
+    # update the ship
+    #ship_element['instance_position'] = [-camera_position_x, -camera_position_y, ship_z]
+
+
+# TODO: what are 'x' and 'y' inputs?
+def default_specialkeys(key, x, y):
     '''
     вызывает функцию glRotatef(градус поворода, ось_Х, ось_У, ось_З)
     '''
@@ -56,7 +115,7 @@ def specialkeys(key, x, y):
     mods = glutGetModifiers()
 
     # Сообщаем о необходимости использовать глобального массива pointcolor
-    global pointcolor, scale, shift_x, shift_y, zoom, tilt_x, tilt_y, g_fViewDistance
+    global pointcolor, scale, camera_position_x, camera_position_y, zoom, camera_tilt_x, camera_tilt_y, g_fViewDistance, shift_val
     # Обработчики специальных клавиш
     # scale
     if key == GLUT_KEY_PAGE_UP: # scale out
@@ -91,52 +150,27 @@ def specialkeys(key, x, y):
 
     if key == GLUT_KEY_UP and mods == GLUT_ACTIVE_ALT:
         #glRotatef(5, 1, 0, 0)       # Вращаем на 5 градусов по оси X
-        tilt_y += tilt_step
+        camera_tilt_y += tilt_step
     elif key == GLUT_KEY_UP:        # Клавиша вверх
-        #glTranslate(0., -0.02, 0.)
-        shift_y += shift_val
-        glUniform1f(PARAM_shift_Y, shift_y)
-        #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
-
-        # update the ship
-        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        handle_key_up()
 
     if key == GLUT_KEY_DOWN and mods == GLUT_ACTIVE_ALT:        # Клавиша вниз
         #glRotatef(-5, 1, 0, 0)      # Вращаем на -5 градусов по оси X
-        tilt_y -= tilt_step
+        camera_tilt_y -= tilt_step
     elif key == GLUT_KEY_DOWN:      # Клавиша вниз
-        #glTranslate()
-        #glTranslate(0., 0.02, 0.)
-        shift_y -= shift_val
-        glUniform1f(PARAM_shift_Y, shift_y)
-        #glUniform1f(PARAM_shift_Y, shift_y+tilt_y)
-
-        # update the ship
-        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        handle_key_down()
 
     if key == GLUT_KEY_LEFT and mods == GLUT_ACTIVE_ALT:        # Клавиша влево
         #glRotatef(5, 0, 1, 0)       # Вращаем на 5 градусов по оси Y
-        tilt_x += tilt_step
+        camera_tilt_x += tilt_step
     elif key == GLUT_KEY_LEFT:        # Клавиша влево
-        #glTranslate(0.02, 0., 0.)
-        shift_x += shift_val
-        glUniform1f(PARAM_shift_X, shift_x)
-        #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
-
-        # update the ship
-        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        handle_key_left()
 
     if key == GLUT_KEY_RIGHT and mods == GLUT_ACTIVE_ALT:       # Клавиша вправо
         #glRotatef(-5, 0, 1, 0)      # Вращаем на -5 градусов по оси Y
-        tilt_x -= tilt_step
+        camera_tilt_x -= tilt_step
     elif key == GLUT_KEY_RIGHT:       # Клавиша вправо
-        #glTranslate(-0.02, 0., 0.)
-        shift_x -= shift_val
-        glUniform1f(PARAM_shift_X, shift_x)
-        #glUniform1f(PARAM_shift_X, shift_x+tilt_x)
-
-        # update the ship
-        #ship_element['instance_position'] = [-shift_x, -shift_y, ship_z]
+        handle_key_right()
 
     #if key == GLUT_KEY_END:         # Клавиша END
     #    # Заполняем массив pointcolor случайными числами в диапазоне 0-1
@@ -185,11 +219,11 @@ def draw():
     #             the "up" is the top of the window where the scene is rendered
 
     # and moving the camera:
-    #gluLookAt(-shift_x-tilt_x, -shift_y-tilt_y, -g_fViewDistance, -shift_x, -shift_y, 0, 0, 1, 0)   #-.1,0,0
-    camera_x =   np.sin(tilt_y) * np.sin(tilt_x) * abs(g_fViewDistance)
-    camera_y = - np.sin(tilt_y) * np.cos(tilt_x) * abs(g_fViewDistance)
-    camera_z = - np.cos(tilt_y) * abs(g_fViewDistance)
-    gluLookAt(-shift_x+camera_x, -shift_y+camera_y, camera_z, -shift_x, -shift_y, 0, 0, 1, 0)   #-.1,0,0
+    #gluLookAt(-camera_position_x-camera_tilt_x, -camera_position_y-camera_tilt_y, -g_fViewDistance, -camera_position_x, -camera_position_y, 0, 0, 1, 0)   #-.1,0,0
+    camera_x =   np.sin(camera_tilt_y) * np.sin(camera_tilt_x) * abs(g_fViewDistance)
+    camera_y = - np.sin(camera_tilt_y) * np.cos(camera_tilt_x) * abs(g_fViewDistance)
+    camera_z = - np.cos(camera_tilt_y) * abs(g_fViewDistance)
+    gluLookAt(-camera_position_x+camera_x, -camera_position_y+camera_y, camera_z, -camera_position_x, -camera_position_y, 0, 0, 1, 0)   #-.1,0,0
 
     # Set perspective (also zoom)
     glMatrixMode(GL_PROJECTION)
@@ -229,7 +263,7 @@ glutDisplayFunc(draw) # когда она запускается?
 # мне нужно 1 раз загрузить буферы с вершинами и всё, дальше только перерисовывать зум и движение по графику
 
 ## Определяем процедуру, отвечающую за обработку клавиш
-glutSpecialFunc(specialkeys)
+glutSpecialFunc(default_specialkeys)
 
 # Задаем серый цвет для очистки экрана
 glClearColor(0.2, 0.2, 0.2, 1)
@@ -250,31 +284,31 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #
 # только для зума нужно таки использовать ту проджекшн матрикс
 #  uniform float scale;
-#  uniform float shift_x, shift_y;
-#        Vertex.x += shift_x;
-#        Vertex.y += shift_y;
+#  uniform float center_x, center_y;
+#        Vertex.x += center_x;
+#        Vertex.y += center_y;
 #        Vertex.x *= scale;
 #        Vertex.y *= scale;
 #        Vertex.z *= scale;
 #    vec4 Vertex = vec4(position, 1.0);
 
-#         Vertex.x += shift_x;
-#         Vertex.y += shift_y;
-#         Vertex.z += sqrt((Vertex.x-shift_x)*(Vertex.x-shift_x) + (Vertex.y-shift_y)*(Vertex.y-shift_y));
-#         Vertex.z += ((Vertex.x-shift_x)*(Vertex.x-shift_x) + (Vertex.y-shift_y)*(Vertex.y-shift_y));
-#         Vertex.z += 2.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
-#         Vertex.z += 0.1*((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
-#         Vertex.z += 100.*exp(-1.0/(0.001+sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y))));
+#         Vertex.x += center_x;
+#         Vertex.y += center_y;
+#         Vertex.z += sqrt((Vertex.x-center_x)*(Vertex.x-center_x) + (Vertex.y-center_y)*(Vertex.y-center_y));
+#         Vertex.z += ((Vertex.x-center_x)*(Vertex.x-center_x) + (Vertex.y-center_y)*(Vertex.y-center_y));
+#         Vertex.z += 2.0*sqrt((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
+#         Vertex.z += 0.1*((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
+#         Vertex.z += 100.*exp(-1.0/(0.001+sqrt((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y))));
 
 # hyperbolic
-#         Vertex.z += 10.0*sqrt((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
-#         Vertex.z += 10.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#         Vertex.z += 10.0*sqrt((instance_position.x+center_x)*(instance_position.x+center_x) + (instance_position.y+center_y)*(instance_position.y+center_y));
+#         Vertex.z += 10.0*sqrt((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
 
 # rotational projection of the hyperbolic on the surface
 # and also explicit hyperbolic shader, not conic
 
-#    float init_x = instance_position.x+shift_x;
-#    float init_y = instance_position.y+shift_y;
+#    float init_x = instance_position.x+center_x;
+#    float init_y = instance_position.y+center_y;
 #    float rad2 = init_x*init_x + init_y*init_y;
 #    float rad  = sqrt(rad2);
 #    float hyperbolic_z   = 10.0*sqrt(5.0 + rad2);
@@ -292,15 +326,15 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
 # angular
-#    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#    float dist2 = ((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
 
-#    float dist2 = ((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
+#    float dist2 = ((instance_position.x+center_x)*(instance_position.x+center_x) + (instance_position.y+center_y)*(instance_position.y+center_y));
 #    float dist = sqrt(dist2);
 #    float alpha = 0.15*dist/sqrt(dist2 + 16.);
 #         Vertex.z += dist/tan(alpha);
 
-#    float dist2 = ((instance_position.x+shift_x)*(instance_position.x+shift_x) + (instance_position.y+shift_y)*(instance_position.y+shift_y));
-#    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#    float dist2 = ((instance_position.x+center_x)*(instance_position.x+center_x) + (instance_position.y+center_y)*(instance_position.y+center_y));
+#    float dist2 = ((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
 
 
 #         Vertex.z += sqrt(Vertex.x*Vertex.x + Vertex.y*Vertex.y);
@@ -310,12 +344,12 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #    float alpha = 0.15*dist/sqrt(dist2 + 16.);
 #         Vertex.z += dist/tan(alpha);
 
-#    float dist2 = ((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#    float dist2 = ((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
 #    float dist = sqrt(dist2);
 #    float alpha = 0.15*dist/sqrt(dist2 + 16.);
 #         Vertex.z += dist/tan(alpha);
 
-#         Vertex.z += 10.0*sqrt((Vertex.x+shift_x)*(Vertex.x+shift_x) + (Vertex.y+shift_y)*(Vertex.y+shift_y));
+#         Vertex.z += 10.0*sqrt((Vertex.x+center_x)*(Vertex.x+center_x) + (Vertex.y+center_y)*(Vertex.y+center_y));
 #         Vertex.z += 10.0*sqrt((Vertex.x)*(Vertex.x) + (Vertex.y)*(Vertex.y));
 
 #         Vertex.x *= scale;
@@ -326,7 +360,7 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 std_flat_shader = """
   uniform float scale;
-  uniform float shift_x, shift_y;
+  uniform float center_x, center_y;
   attribute vec3 position;
   attribute vec3 color;
   attribute vec3 instance_position;
@@ -341,7 +375,7 @@ std_flat_shader = """
 
 hyperbolic_shader = """
   uniform float scale;
-  uniform float shift_x, shift_y;
+  uniform float center_x, center_y;
   attribute vec3 position;
   attribute vec3 color;
   attribute vec3 instance_position;
@@ -350,8 +384,8 @@ hyperbolic_shader = """
   {
     vec4 Vertex = vec4(instance_position + position, 1.0);
 
-    float init_x = instance_position.x + shift_x + position.x;
-    float init_y = instance_position.y + shift_y + position.y;
+    float init_x = instance_position.x + center_x + position.x;
+    float init_y = instance_position.y + center_y + position.y;
     float rad2 = init_x*init_x + init_y*init_y;
     float rad  = sqrt(rad2);
     float hyperbolic_z = 6.0*sqrt(1.0 + rad2);
@@ -373,8 +407,8 @@ hyperbolic_shader = """
     vertex_color = color;
   }"""
 
-#    float init_x = instance_position.x+shift_x;
-#    float init_y = instance_position.y+shift_y;
+#    float init_x = instance_position.x+center_x;
+#    float init_y = instance_position.y+center_y;
 #    float slope_tan  = rad / hyperbolic_z;
 #    float slope_tan2 = slope_tan * slope_tan;
 #    float slope_cos = 1.0 / sqrt(1.0+slope_tan2);
@@ -427,15 +461,15 @@ def compile_and_load_program(shader_text=std_flat_shader, fragment_shader_text=s
     # zoom and shift
     #PARAM_scale = glGetUniformLocation(vertex2, 'scale')
     global PARAM_scale  
-    global PARAM_shift_X
-    global PARAM_shift_Y
+    global PARAM_center_x
+    global PARAM_center_y
     PARAM_scale   = glGetUniformLocation(program, 'scale')
-    PARAM_shift_X = glGetUniformLocation(program, 'shift_x')
-    PARAM_shift_Y = glGetUniformLocation(program, 'shift_y')
+    PARAM_center_x = glGetUniformLocation(program, 'center_x')
+    PARAM_center_y = glGetUniformLocation(program, 'center_y')
     # set zoom scale parameter:
     glUniform1f(PARAM_scale, 1.0)
-    glUniform1f(PARAM_shift_X, 0.)
-    glUniform1f(PARAM_shift_Y, 0.)
+    glUniform1f(PARAM_center_x, 0.)
+    glUniform1f(PARAM_center_y, 0.)
 
     return program
 
